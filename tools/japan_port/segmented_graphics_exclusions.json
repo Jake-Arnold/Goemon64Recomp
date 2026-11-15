@@ -1,0 +1,93 @@
+{
+  "description": "ROM-SHA-1-scoped, instruction-exact symbolic false positives: graphics segmented-address arithmetic using 0xF8000000, not relocated CPU pointers. These cases were cross-checked against the authoritative USA table and corresponding Japanese instruction sequences.",
+  "rom_sha1_to_exclusions": {
+    "6ea0ed71032ce08fc2745f412d84936382197494": [
+      {
+        "section": "file_30",
+        "type": "R_MIPS_HI16",
+        "vram": "0x080043E4",
+        "target_vram": "0x08002360"
+      },
+      {
+        "section": "file_30",
+        "type": "R_MIPS_LO16",
+        "vram": "0x080043E8",
+        "target_vram": "0x08002360"
+      },
+      {
+        "section": "file_56",
+        "type": "R_MIPS_HI16",
+        "vram": "0x08001390",
+        "target_vram": "0x08000060"
+      },
+      {
+        "section": "file_56",
+        "type": "R_MIPS_LO16",
+        "vram": "0x080013AC",
+        "target_vram": "0x08000060"
+      }
+    ],
+    "6f8745fecc3a5e7d4918c7a73353eb0726116ded": [
+      {
+        "section": "file_30",
+        "type": "R_MIPS_HI16",
+        "vram": "0x08001E4C",
+        "target_vram": "0x08002360"
+      },
+      {
+        "section": "file_30",
+        "type": "R_MIPS_LO16",
+        "vram": "0x08001E50",
+        "target_vram": "0x08002360"
+      },
+      {
+        "section": "file_30",
+        "type": "R_MIPS_HI16",
+        "vram": "0x080043E4",
+        "target_vram": "0x08002360"
+      },
+      {
+        "section": "file_30",
+        "type": "R_MIPS_LO16",
+        "vram": "0x080043E8",
+        "target_vram": "0x08002360"
+      },
+      {
+        "section": "file_30",
+        "type": "R_MIPS_HI16",
+        "vram": "0x080061B0",
+        "target_vram": "0x08001390"
+      },
+      {
+        "section": "file_30",
+        "type": "R_MIPS_LO16",
+        "vram": "0x080061B4",
+        "target_vram": "0x08001390"
+      },
+      {
+        "section": "file_56",
+        "type": "R_MIPS_HI16",
+        "vram": "0x080000B8",
+        "target_vram": "0x08000060"
+      },
+      {
+        "section": "file_56",
+        "type": "R_MIPS_LO16",
+        "vram": "0x080000BC",
+        "target_vram": "0x08000060"
+      },
+      {
+        "section": "file_56",
+        "type": "R_MIPS_HI16",
+        "vram": "0x08001390",
+        "target_vram": "0x08000060"
+      },
+      {
+        "section": "file_56",
+        "type": "R_MIPS_LO16",
+        "vram": "0x080013AC",
+        "target_vram": "0x08000060"
+      }
+    ]
+  }
+}
