@@ -62,6 +62,26 @@ class TestMerge(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'out of bounds'):
             merge(SYMS, {**DATA, 'relocations': {'file_24': records}})
 
+    def test_bss_target_requires_verified_bounds(self):
+        records = [
+            {**item, 'target_vram': '0x08000110'}
+            for item in DATA['relocations']['file_24']
+        ]
+        example = {**DATA, 'relocations': {'file_24': records}}
+        with self.assertRaisesRegex(ValueError, 'out of bounds'):
+            merge(SYMS, example)
+        output, statistics = merge(SYMS, example, {'.file_24': 0x20})
+        self.assertIn('0x08000110', output)
+        self.assertEqual(statistics['relocations'], 2)
+
+    def test_bss_limit_cannot_be_negative(self):
+        with self.assertRaisesRegex(ValueError, 'Invalid BSS'):
+            merge(SYMS, DATA, {'.file_24': -4})
+
+    def test_bss_limit_must_belong_to_section(self):
+        with self.assertRaisesRegex(ValueError, 'Invalid BSS'):
+            merge(SYMS, DATA, {'.file_25': 64})
+
 
 if __name__ == '__main__':
     unittest.main()
