@@ -23,6 +23,11 @@ jobs:
           submodules: recursive
           path: toolchain
           persist-credentials: false
+      - name: Checkout port headers only (no ROM data)
+        uses: actions/checkout@v4
+        with:
+          path: port
+          persist-credentials: false
       - name: Verify exact upstream compiler revision
         run: |
           actual="$(git -C toolchain rev-parse HEAD)"
@@ -44,6 +49,10 @@ jobs:
           mkdir -p artifact
           cp tools-build/N64Recomp tools-build/RSPRecomp artifact/
           cp toolchain/LICENSE artifact/N64Recomp-LICENSE
+          mkdir -p artifact/include
+          cp toolchain/include/recomp.h artifact/include/
+          cp port/include/trace.h artifact/include/
+          printf 'Header origins: N64Recomp pinned include/recomp.h; Goemon64Recomp include/trace.h\\n' > artifact/include/README.txt
           printf 'N64Recomp source commit: %s\nGame ROMs, assets, output C and objects are not included.\n' \
             '07fcdac76da3e47105238d45defe83d56c2821f5' > artifact/VERSION.txt
       - name: Upload Linux x86-64 recompilers
