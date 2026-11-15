@@ -69,6 +69,28 @@ class CandidateRelocationTests(unittest.TestCase):
         self.assertEqual(symbol_address("D_08001230_6C0 - 4"), 0x0800122C)
         self.assertIsNone(symbol_address("func_80001230_ABCD"))
 
+    def test_overlay_bss_reference_is_included(self):
+        import hashlib
+        import yaml
+
+        data = self.rom.read_bytes()
+        data = data[:4] + (0x24840048).to_bytes(4, 'big') + data[8:]
+        self.rom.write_bytes(data)
+
+        cfg = yaml.safe_load(self.splat.read_text())
+        cfg['sha1'] = hashlib.sha1(data).hexdigest()
+        cfg['segments'][0]['bss_size'] = 0x20
+        self.splat.write_text(yaml.safe_dump(cfg))
+        self.asm_file.write_text(
+            self.asm_file.read_text().replace(
+                'func_08000020_20', 'func_08000048_48'
+            ).replace('24840020', '24840048')
+        )
+        result = parse(self.asm, self.splat, self.rom)
+        self.assertEqual(result['candidate_relocations'], 3)
+        self.assertEqual(result['relocations']['file_24'][0]['target_vram'],
+                         '0x08000048')
+
 
 if __name__ == "__main__":
     unittest.main()
