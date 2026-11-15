@@ -3,6 +3,7 @@
 #include <fstream>
 
 #include "goemon_game.h"
+#include "goemon_rom_regions.hpp"
 
 #ifdef _MSC_VER
 inline uint32_t byteswap(uint32_t val) {
@@ -132,34 +133,38 @@ size_t lzkn64_decompress_rom(std::span<const uint8_t> input_rom, std::span<uint8
 }
 
 constexpr size_t MAXIMUM_ROM_SIZE = 0x4000000;
-constexpr size_t FILE_TABLE_OFFSET = 0x57FD8;
-constexpr uint32_t DECOMPRESSED_ROM_CRC_1 = 0x9CC11F4B;
-constexpr uint32_t DECOMPRESSED_ROM_CRC_2 = 0xABAA8538;
 
-// Produces a decompressed rom. This is only needed because the game has compressed code.
-// For other recomps using this repo as an example, you can omit the decompression routine and
-// set the corresponding fields in the GameEntry if the game doesn't have compressed code,
-// even if it does have compressed data.
-std::vector<uint8_t> goemon64::decompress_mnsg(std::span<const uint8_t> compressed_rom) {
-    // Sanity check the rom size and header. These should already be correct from the runtime's check,
-    // but it should prevent this file from accidentally being copied to another recomp.
+// The compressed ROM structure is shared by USA and Japan, but its file
+// table, game code and decompressed-header CRCs are region-specific.
+// Keep the original USA entrypoint as-is for existing releases.
+static std::vector<uint8_t> decompress_mnsg_region(
+    std::span<const uint8_t> compressed_rom,
+    const goemon64::regions::RomParameters& parameters
+) {
     if (compressed_rom.size() != 0x1000000) {
         assert(false);
         return {};
     }
 
-    if (compressed_rom[0x3B] != 'N' || compressed_rom[0x3C] != 'G' || compressed_rom[0x3D] != '5' || compressed_rom[0x3E] != 'E') {
+    for (size_t i = 0; i < parameters.internal_game_code.size(); ++i) {
+        if (compressed_rom[0x3B + i] != static_cast<uint8_t>(parameters.internal_game_code[i])) {
+            assert(false);
+            return {};
+        }
+    }
+
+    std::vector<uint8_t> ret(MAXIMUM_ROM_SIZE);
+    memcpy(ret.data(), compressed_rom.data(), compressed_rom.size());
+
+    size_t final_size = lzkn64_decompress_rom(
+        compressed_rom, ret, parameters.file_table_offset
+    );
+
+    // Preserve the original runtime's power-of-two output alignment.
+    if (final_size == 0 || final_size > MAXIMUM_ROM_SIZE) {
         assert(false);
         return {};
     }
-
-    std::vector<uint8_t> ret{};
-    ret.resize(MAXIMUM_ROM_SIZE);
-    memcpy(ret.data(), compressed_rom.data(), compressed_rom.size());
-
-    size_t final_size = lzkn64_decompress_rom(compressed_rom, ret, FILE_TABLE_OFFSET);
-
-    // Align final_size to the nearest power of two.
     final_size--;
     final_size |= final_size >> 1;
     final_size |= final_size >> 2;
@@ -167,12 +172,25 @@ std::vector<uint8_t> goemon64::decompress_mnsg(std::span<const uint8_t> compress
     final_size |= final_size >> 8;
     final_size |= final_size >> 16;
     final_size++;
-
     ret.resize(final_size);
 
-    // Write the CRC values to the header of the decompressed ROM.
-    *reinterpret_cast<uint32_t*>(ret.data() + 0x10) = byteswap(DECOMPRESSED_ROM_CRC_1);
-    *reinterpret_cast<uint32_t*>(ret.data() + 0x14) = byteswap(DECOMPRESSED_ROM_CRC_2);
-
+    *reinterpret_cast<uint32_t*>(ret.data() + 0x10) =
+        byteswap(parameters.decompressed_crc1);
+    *reinterpret_cast<uint32_t*>(ret.data() + 0x14) =
+        byteswap(parameters.decompressed_crc2);
     return ret;
+}
+
+std::vector<uint8_t> goemon64::decompress_mnsg(
+    std::span<const uint8_t> compressed_rom
+) {
+    return decompress_mnsg_region(compressed_rom, regions::usa);
+}
+
+// Intentionally not registered in supported_games yet: Japanese
+// game code/overlays must be linked into their own native build first.
+std::vector<uint8_t> goemon64::decompress_mnsg_japan(
+    std::span<const uint8_t> compressed_rom
+) {
+    return decompress_mnsg_region(compressed_rom, regions::japan_0);
 }
