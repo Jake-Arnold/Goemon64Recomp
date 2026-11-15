@@ -73,3 +73,28 @@ python3 tools/japan_port/sections.py \
 
 Observed: **72 candidate sections per region** (entry + main + 70 named overlays). **71 differ** in their recorded metadata (main + every overlay), while entry remains aligned. These counts agree with the 72 section declarations in the existing USA `Goemon64RecompSyms/mnsg.syms.toml`; the sample USA entry/main/overlay sizes match the Splat-derived spans. This is evidence for source-section structure, **not** proof of executable-function or relocation coverage. Japanese symbols must still be derived and validated independently.
 
+
+## Candidate function inventory
+
+The supplied Japanese Splat output was scanned for `nonmatching` function annotations and the first ROM/VRAM instruction comments. Data/BSS assembly files were excluded. Every candidate was checked against its Japanese section's ROM-to-VRAM correspondence and its declared byte size.
+
+**Observed from the project-supplied Japanese source snapshot:**
+- 72 section candidates
+- **7,351 Japanese function candidates**, uniquely mapped to sections
+- **0** mapping failures, **0** overlaps and **0** sections without functions
+- 1,816,416 total function bytes in 2,329,376 bytes of candidate sections (about 78%; non-function bytes include data and padding)
+- Candidate TOML generated and successfully parsed by Python `tomllib`
+
+For comparison, the upstream pinned USA `mnsg.syms.toml` contains 7,376 function entries across 72 sections. This **does not** establish that the remaining Japanese code is fully covered.
+
+Generate the Japan-only candidate symbol file locally after the Splat extraction:
+
+```bash
+python3 tools/japan_port/candidate_symbols.py \
+  --japan-splat /path/to/mnsg/config/japan_0/splat.yaml \
+  --asm-root /path/to/mnsg/asm/japan_0 \
+  --output /tmp/goemon-japan/japan-candidates.syms.toml
+```
+
+The generated file must stay out of version control. This is a candidate **function** table only: `relocs` entries, required data symbols, indirect branches, and any functions omitted by extraction still need independent reconstruction. **No Japanese N64Recomp run or native PC boot is claimed.**
+
