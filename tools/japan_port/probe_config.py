@@ -39,6 +39,9 @@ def inspect_symbol_map(symbol_map: dict) -> dict:
     names = [by_name[n]["name"] for n in OVERLAYS]
     if any(by_name[name]["size"] <= 0 for name in names):
         raise ValueError("Overlay section has invalid size")
+    if any("relocs" not in by_name[name] or not isinstance(by_name[name]["relocs"], list)
+           for name in names):
+        raise ValueError("Every relocatable overlay must have a relocs array (even empty)")
     functions = sum(len(s.get("functions", [])) for s in sections)
     relocations = sum(len(s.get("relocs", [])) for s in sections)
     if functions < 7300 or relocations < 6400:
