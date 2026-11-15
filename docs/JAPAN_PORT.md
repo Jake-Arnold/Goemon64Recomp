@@ -151,3 +151,19 @@ python3 tools/japan_port/merge_candidate_symbols.py \
 
 **Verified locally against the supplied Japanese ROM:** merged TOML parses correctly and contains **72 candidate sections**, **7,351 functions**, and **6,194 candidate overlay relocation records**. Ten focused synthetic unit tests passed for the relocation scanner and TOML merger. The output is intentionally kept outside the repository and should not yet be supplied to a shipping PC runtime or described as a completed recompile. No `N64Recomp` or `RSPRecomp` executable is bundled with the provided archives, so native generation is an independent upcoming build step.
 
+
+## Exact USA difference audit and automated checks
+
+After checking out the pinned `Goemon64RecompSyms` submodule, the same scanner can be run against the USA decompressed ROM and USA assembly output. For an exact record-level difference report:
+
+```bash
+python3 tools/japan_port/audit_relocations.py \
+  --reference Goemon64RecompSyms/mnsg.syms.toml \
+  --candidates /tmp/goemon-usa/reloc-candidates.json \
+  --output /tmp/goemon-usa/reloc-differences.json
+```
+
+The report lists **missing and extra actual relocation triples** (type, site VRAM, target VRAM) for every section. This is the diagnostic input for reconstructing the still-ambiguous Japanese sites; it does not transfer USA addresses to Japan.
+
+A dedicated GitHub Actions workflow (`.github/workflows/japan-port-metadata.yml`) executes Python metadata unit tests on PR changes without needing ROMs, extracted assets, or N64Recomp. Local checks confirmed **13 new synthetic tests** for relocation extraction, difference reporting and TOML merging. The earlier ROM tests are also included in workflow discovery.
+
