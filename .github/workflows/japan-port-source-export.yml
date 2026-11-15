@@ -1,0 +1,49 @@
+name: Japan port source workspace export
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/japan-native-recomp
+    paths:
+      - ".github/workflows/japan-port-source-export.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  public-source-snapshot:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout complete open source tree
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          persist-credentials: false
+      - name: Package source and declared dependencies (no game data)
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f lib/N64ModernRuntime/CMakeLists.txt
+          test -f lib/rt64/CMakeLists.txt
+          test -f lib/RmlUi/CMakeLists.txt
+          test -f src/main/main.cpp
+          mkdir -p _export
+          tar --exclude-vcs \
+              --exclude='./_export' \
+              --exclude='*.z64' --exclude='*.n64' --exclude='*.v64' \
+              --exclude='*.rom' --exclude='*.bin' \
+              --exclude='RecompiledFuncs' \
+              --exclude='RecompiledPatches' \
+              --exclude='build-generated' \
+              --exclude='baserom*' --exclude='*.elf' --exclude='*.o' \
+              -czf _export/goemon64recomp-open-source.tar.gz .
+          ls -lh _export/goemon64recomp-open-source.tar.gz
+          sha256sum _export/goemon64recomp-open-source.tar.gz > _export/SHA256SUMS
+      - name: Upload source workspace to conversation workspace
+        uses: actions/upload-artifact@v4
+        with:
+          name: goemon64recomp-source-with-submodules
+          path: _export/
+          if-no-files-found: error
+          retention-days: 2
