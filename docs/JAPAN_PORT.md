@@ -98,3 +98,10 @@ python3 tools/japan_port/candidate_symbols.py \
 
 The generated file must stay out of version control. This is a candidate **function** table only: `relocs` entries, required data symbols, indirect branches, and any functions omitted by extraction still need independent reconstruction. **No Japanese N64Recomp run or native PC boot is claimed.**
 
+
+## Relocation-file clarification
+
+The missing Japanese Splat `reloc_addrs/reloc_addrs.txt` is **not itself a complete N64Recomp relocation table**. The supplied USA counterpart is predominantly Splat disassembly overrides marked `MIPS_NONE` to suppress false-positive symbolic relocations (315 such entries, versus two explicit HI16/LO16 overrides). Its absence did not prevent Japanese Splat extraction. It must not be copied from USA.
+
+The existing USA N64Recomp symbols contain **6,351 actual relocation entries** across 55 sections: 2,981 `R_MIPS_HI16`, 2,981 `R_MIPS_LO16` and 389 `R_MIPS_26`. Region-correct Japanese equivalents remain ungenerated. Distinguish these from disassembler false-positive suppression annotations.
+
