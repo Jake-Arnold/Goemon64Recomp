@@ -43,6 +43,16 @@ target_include_directories(GoemonRecompiledJapan PRIVATE
   "${GOEMON_N64RECOMP_INCLUDE}"
   "${GOEMON_PORT_INCLUDE}"
 )
+if(NOT CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+  message(FATAL_ERROR "This Japanese native object probe currently requires GCC or Clang")
+endif()
+# The pinned N64Recomp output refers to 15 genuine host functions without
+# generating their prototypes. Only declare them here: link validation must
+# still resolve the implementations and must never silently stub them out.
+target_compile_options(GoemonRecompiledJapan PRIVATE
+  -include "${CMAKE_CURRENT_SOURCE_DIR}/runtime_externs.h"
+)
+
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
   target_compile_options(GoemonRecompiledJapan PRIVATE
     -fno-strict-aliasing
