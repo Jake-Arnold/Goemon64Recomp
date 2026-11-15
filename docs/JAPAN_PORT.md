@@ -96,6 +96,30 @@ Source-only build support is in [`tools/japan_port/native_compile/`](../tools/ja
 
 The ROM-free GitHub Actions metadata workflow passed **75 tests**, including synthetic native CMake archive compilation and missing-input rejection: <https://github.com/Jake-Arnold/Goemon64Recomp/actions/runs/43774274464>. Native gameplay, actual runtime linking, overlay activation and UI are still untested. No generated Japanese game code or object file was committed.
 
+## Native runtime integration gates
+
+The C++ ROM decompressor is now region-parameterised in `src/game/rom_decompression.cpp`. The existing USA `goemon64::decompress_mnsg` entrypoint is retained unchanged; `goemon64::decompress_mnsg_japan` uses Japanese file-table offset `0x58258`, game code `NG5J`, and CRCs `0x673A3EDC` / `0x2491ADFC`. The Japanese routine is **not yet registered in the launcher**, because a valid Japanese native executable must be linked first.
+
+The source-only `include/goemon_rom_regions.hpp` records the XXH3-64 hashes of the original normalised 16 MiB images: USA `0xDB1BC7EE0E6BEBA1`, Japan `0xD526A3DB80EB7924`. The USA result exactly reproduces the current launcher `rom_hash` field. The Japanese name field in the N64 ROM is non-ASCII (Japanese encoded), so the future launcher should not blindly reuse `"MYSTICAL NINJA"`.
+
+GitHub CI now compiles and runs `tools/japan_port/test_runtime_decompression.cpp` against the **real C++ decompressor implementation** with ROM-free synthetic USA and Japanese tables. It validates regional game codes, CRCs, file table handling, payload copies and output alignment. This is a structural regression, not the complete original-game ROM SHA proof.
+
+### Isolated native Japanese library
+
+An opt-in `tools/japan_port/native_compile/CMakeLists.txt` builds the privately generated Japanese C sources, using the pinned SDK's `recomp.h` and *declaration-only* runtime imports. A local Clang build produced `libGoemonRecompiledJapan.a` successfully. No game assets or generated C are committed. The archive is not itself a playable program.
+
+The repository's `tools/japan_port/native_link_audit.py` can audit unresolved symbols:
+
+```bash
+python3 tools/japan_port/native_link_audit.py \
+  --archive /path/to/private/libGoemonRecompiledJapan.a \
+  --output /tmp/goemon-japan/native-link-audit.json
+```
+
+The archive audit recorded **82 unresolved unique external names** after internal definitions are removed: **71** `*_recomp` host-runtime functions, **6** libc/math functions and **5** recompilation dispatch/platform functions. This is a normal *link-preparation* status, not evidence of 82 missing game functions. The tool can also accept repeated `--provider /path/to/library.a` arguments to find which names a native runtime archive exports. Actual ABI compatibility and final linkage still require a real link test.
+
+**Next gates:** link the generated Japanese C archive with the correctly pinned N64ModernRuntime and platform code; reconcile Japanese-specific patches and data symbol addresses; register a Japanese-only native `GameEntry`, overlay table and clean launcher path; then verify title screen, input, scenes, audio, saves and gameplay. Do not wire Japanese ROM selection to the existing USA executable.
+
 ## Verified input revisions (SHA-1)
 
 | File | Expected SHA-1 |
