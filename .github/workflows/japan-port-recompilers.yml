@@ -1,0 +1,55 @@
+name: Japan port pinned recompilers
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/japan-native-recomp
+    paths:
+      - ".github/workflows/japan-port-recompilers.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  linux-recompilers:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout the pinned N64Recomp revision
+        uses: actions/checkout@v4
+        with:
+          repository: N64Recomp/N64Recomp
+          ref: 07fcdac76da3e47105238d45defe83d56c2821f5
+          submodules: recursive
+          path: toolchain
+          persist-credentials: false
+      - name: Verify exact upstream compiler revision
+        run: |
+          actual="$(git -C toolchain rev-parse HEAD)"
+          test "$actual" = "07fcdac76da3e47105238d45defe83d56c2821f5"
+          echo "Pinned N64Recomp: $actual"
+      - name: Install CMake build dependencies
+        run: sudo apt-get update && sudo apt-get install -y ninja-build cmake g++ 
+      - name: Configure native static recompiler tools
+        run: cmake -S toolchain -B tools-build -G Ninja -DCMAKE_BUILD_TYPE=Release
+      - name: Compile N64Recomp CLI and RSPRecomp
+        run: cmake --build tools-build --target N64RecompCLI RSPRecomp --parallel 2
+      - name: Confirm binaries
+        run: |
+          test -x tools-build/N64Recomp
+          test -x tools-build/RSPRecomp
+          file tools-build/N64Recomp tools-build/RSPRecomp
+      - name: Package host-side recompilers (no game content)
+        run: |
+          mkdir -p artifact
+          cp tools-build/N64Recomp tools-build/RSPRecomp artifact/
+          cp toolchain/LICENSE artifact/N64Recomp-LICENSE
+          printf 'N64Recomp source commit: %s\nGame ROMs, assets, output C and objects are not included.\n' \
+            '07fcdac76da3e47105238d45defe83d56c2821f5' > artifact/VERSION.txt
+      - name: Upload Linux x86-64 recompilers
+        uses: actions/upload-artifact@v4
+        with:
+          name: goemon-japan-pinned-recompilers-linux-x86_64
+          path: artifact/
+          if-no-files-found: error
+          retention-days: 14
