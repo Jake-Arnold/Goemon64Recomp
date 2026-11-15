@@ -48,6 +48,14 @@ class ProbeMetadataTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "file_24 through file_80"):
             inspect_symbol_map(data)
 
+    def test_missing_empty_relocation_table_rejected(self):
+        data = fixture()
+        # file_52 has zero relocations but MUST have the relocs key.
+        file_52 = next(s for s in data['section'] if s['name'] == '.file_52')
+        del file_52['relocs']
+        with self.assertRaisesRegex(ValueError, 'relocs array'):
+            inspect_symbol_map(data)
+
     def test_old_metadata_rejected(self):
         data = fixture()
         data["section"][-1]["functions"] = []
