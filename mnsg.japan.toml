@@ -1,0 +1,18 @@
+# Experimental static-recompilation input for the Japanese (NG5J) ROM.
+# This does NOT produce a runnable port and must not be used for release builds.
+# The paths under build-generated/japan/ are prepared locally from user-owned
+# ROMs and are excluded from Git; the USA settings are intentionally untouched.
+
+[input]
+entrypoint = 0x80000400
+output_func_path = "build-generated/japan/RecompiledFuncs"
+relocatable_sections_path = "mnsg.overlays.txt"
+symbols_file_path = "build-generated/japan/japan-PROVISIONAL.syms.toml"
+rom_file_path = "build-generated/japan/baserom.decompressed.z64"
+trace_mode = true
+bss_section_suffix = "_bss"
+
+# No NTSC-U-only instruction corrections or patch binaries.
+[patches]
+stubs = []
+ignored = []
