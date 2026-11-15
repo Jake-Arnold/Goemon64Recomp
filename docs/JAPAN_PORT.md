@@ -2,7 +2,63 @@
 
 The goal is a **native** Japanese PC build of *Ganbare Goemon: Neo Momoyama Bakufu no Odori* alongside the existing USA *Mystical Ninja Starring Goemon* build.
 
-This branch currently contains only **ROM validation, region parameters and a non-executable overlay inventory tool**. No Japanese N64Recomp output, PC binary or gameplay has been produced. Upstream USA code and build settings are deliberately unchanged.
+This branch now contains source-only preparation for **Japanese N64Recomp code generation**, plus verification and regression tools. A complete diagnostic Japanese N64Recomp pass has generated C output locally; **no Japanese playable PC executable or gameplay validation exists yet**. Upstream USA source/build configuration remains unchanged.
+
+## Native code-generation milestone (15 November 2026)
+
+A real run of the *exact* Goemon-pinned Linux `N64Recomp` binary (`07fcdac76da3e47105238d45defe83d56c2821f5`) completed with **exit code 0** against the user-supplied exact Japanese 32 MiB decompressed ROM. Its output includes native-compatible `funcs_*.c` files, `funcs.h`, `lookup.cpp` and `recomp_overlays.inl` in a private ignored workspace; **none of these generated game-code files are committed**.
+
+- **72 sections** (entry, main, 70 overlays); **57 relocatable overlay sections** explicitly have `relocs` arrays, including empty arrays for `file_52` and `file_76`.
+- **7,376 Japanese functions**, including 24 recovered from a C-designated Splat region and a ROM-verified split of two handwritten libultra routines.
+- **6,434 candidate relocations** after Japanese BSS inclusion and ten reviewed graphics-segment exclusions.
+- **No deliberate `ignored` functions** in the successful diagnostic configuration. The pinned N64Recomp symbol list recognises `send_mesg` and `handle_CpU` as OS functions supplied by the host runtime, so their handwritten exception code is not compiled directly.
+- Only diagnostic warning: an ambiguous JAL target `0x801D0B90` in `func_800023F4_2FF4` fell back to runtime function lookup; an indirect tail call in `recomp_entrypoint` was also reported.
+
+This is **not yet a native executable** and **not proof of runtime correctness**. Japanese boot, data/patch symbol compatibility, RSP execution, scene overlays, UI and saves must be tested with the PC runtime.
+
+### Reproduce the exact Japanese all-assembly build inputs
+
+From the root of a local `mnsg-japan` checkout that contains the verified Japanese decompressed ROM and `splat` environment:
+
+```bash
+python3 /path/to/Goemon64Recomp/tools/japan_port/fullasm_config.py \
+  --japan-splat config/japan_0/splat.yaml \
+  --output config/japan_0/splat.recomp-probe.yaml
+
+python3 -m splat split config/japan_0/splat.recomp-probe.yaml
+# If using the portable archived environment, invoke Splat via its own script
+# with the bundled Python, PYTHONHOME, PYTHONPATH and LD_LIBRARY_PATH.
+
+python3 /path/to/Goemon64Recomp/tools/japan_port/candidate_symbols.py \
+  --japan-splat config/japan_0/splat.yaml \
+  --asm-root build-generated/japan_recomp/asm \
+  --output /tmp/goemon-japan/allasm-candidates.toml
+
+python3 /path/to/Goemon64Recomp/tools/japan_port/refine_libultra.py \
+  --rom config/japan_0/baserom.decompressed.z64 \
+  --candidate-symbols /tmp/goemon-japan/allasm-candidates.toml \
+  --output /tmp/goemon-japan/refined-candidates.toml
+
+python3 /path/to/Goemon64Recomp/tools/japan_port/reloc_candidates.py \
+  --asm-root build-generated/japan_recomp/asm \
+  --splat config/japan_0/splat.yaml \
+  --rom config/japan_0/baserom.decompressed.z64 \
+  --output /tmp/goemon-japan/relocs.json
+
+python3 /path/to/Goemon64Recomp/tools/japan_port/merge_candidate_symbols.py \
+  --japan-splat config/japan_0/splat.yaml \
+  --candidate-symbols /tmp/goemon-japan/refined-candidates.toml \
+  --candidate-relocations /tmp/goemon-japan/relocs.json \
+  --output /tmp/goemon-japan/japan-PROVISIONAL.syms.toml
+
+python3 /path/to/Goemon64Recomp/tools/japan_port/probe_config.py \
+  --rom config/japan_0/baserom.decompressed.z64 \
+  --symbols /tmp/goemon-japan/japan-PROVISIONAL.syms.toml \
+  --output-dir /tmp/goemon-japan/native-probe \
+  --n64recomp /path/to/pinned/N64Recomp
+```
+
+The source Splat configuration remains unchanged; the separate all-ASM configuration converts **189 C-designated subsegments** into assembly, recovering **24 extra executable functions** previously missing from the symbol table. The `refine_libultra.py` tool checks exact ROM SHA-1 and instruction words at `0x4A204`, `0x4A2B8` and `0x4A2E8`, then splits `func_80049604_4A204` (0xE8 bytes) into `send_mesg` (0xB4 bytes) and `handle_CpU` (0x34 bytes). Both are recognized runtime-supplied libultra symbols in the pinned N64Recomp `src/symbol_lists.cpp`. The no-ignored-functions diagnostic run finished in under one second on the local host.
 
 ## Verified input revisions (SHA-1)
 
@@ -78,9 +134,9 @@ Observed: **72 candidate sections per region** (entry + main + 70 named overlays
 
 The supplied Japanese Splat output was scanned for `nonmatching` function annotations and the first ROM/VRAM instruction comments. Data/BSS assembly files were excluded. Every candidate was checked against its Japanese section's ROM-to-VRAM correspondence and its declared byte size.
 
-**Observed from the project-supplied Japanese source snapshot:**
+**Initial partial extraction (superseded by the all-assembly extraction above):**
 - 72 section candidates
-- **7,351 Japanese function candidates**, uniquely mapped to sections
+- **7,351 initial Japanese function candidates**, uniquely mapped to sections (now 7,376 after the all-ASM and libultra fixes)
 - **0** mapping failures, **0** overlaps and **0** sections without functions
 - 1,816,416 total function bytes in 2,329,376 bytes of candidate sections (about 78%; non-function bytes include data and padding)
 - Candidate TOML generated and successfully parsed by Python `tomllib`
@@ -153,7 +209,7 @@ python3 tools/japan_port/merge_candidate_symbols.py \
   --output /tmp/goemon-japan/japan-PROVISIONAL.syms.toml
 ```
 
-**Verified locally against the supplied Japanese ROM:** merged TOML parses correctly and contains **72 candidate sections**, **7,351 functions**, and **6,434 candidate overlay relocation records**. Ten focused synthetic unit tests passed for the relocation scanner and TOML merger. The output is intentionally kept outside the repository and should not yet be supplied to a shipping PC runtime or described as a completed recompile. No `N64Recomp` or `RSPRecomp` executable is bundled with the provided archives, so native generation is an independent upcoming build step.
+**Initially verified:** merged TOML contained 72 candidate sections, 7,351 functions and 6,434 relocation candidates. The current refined symbol map contains **7,376 functions**, 72 sections and 6,434 relocation candidates; see the current milestone above. Ten focused synthetic unit tests passed for the relocation scanner and TOML merger. The output is intentionally kept outside the repository and is not ready for a shipping PC runtime. The pinned N64Recomp host tools were built by GitHub Actions, and native C code generation was then successfully exercised locally (see above).
 
 
 ## Exact USA difference audit and automated checks
