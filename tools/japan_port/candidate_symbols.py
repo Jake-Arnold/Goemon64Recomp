@@ -84,6 +84,11 @@ def parse_functions(asm_root: Path, sections: list[dict]) -> list[dict]:
             section = matching_sections[0]
             if rom + size > section["end"]:
                 raise ValueError(f"{path}: {name} extends beyond section")
+            if section["name"] == "entry":
+                if ((rom, vram, size) != (0x1000, 0x80000400, 0x38)
+                        or name not in ("func_80000400_1000", "recomp_entrypoint")):
+                    raise ValueError("Japanese entrypoint layout or name differs from the native runtime ABI")
+                name = "recomp_entrypoint"
             found.append({
                 "section": section["name"], "name": name,
                 "rom": rom, "vram": vram, "size": size,
@@ -91,6 +96,8 @@ def parse_functions(asm_root: Path, sections: list[dict]) -> list[dict]:
     by_section = defaultdict(list)
     for function in found:
         by_section[function["section"]].append(function)
+    if len(by_section["entry"]) != 1 or by_section["entry"][0]["name"] != "recomp_entrypoint":
+        raise ValueError("Japanese ROM did not yield one validated native entrypoint")
     for section, functions in by_section.items():
         ordered = sorted(functions, key=lambda function: function["vram"])
         for previous, following in zip(ordered, ordered[1:]):
