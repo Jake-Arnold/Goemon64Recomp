@@ -88,6 +88,14 @@ python3 /path/to/Goemon64Recomp/tools/japan_port/rsp_config.py \
 
 This confirms **the existing audio RSP task does not need a separate Japanese translation**. It does not yet validate audio running inside the native PC runtime.
 
+## Native compilation milestone: Linux static archive
+
+The locally generated Japanese `RecompiledFuncsJP` passed a second real toolchain gate with Clang 17 and CMake/Ninja: **145 C translation units**, `lookup.cpp`, and a final **33 MiB `libGoemonRecompiledJapan.a`** archive, with **exit code 0**. The complete build used the exact source-ROM SHA-1, pinned N64Recomp header and the fork's `trace.h`. This is an object-code library, **not** an executable.
+
+Source-only build support is in [`tools/japan_port/native_compile/`](../tools/japan_port/native_compile/README.md), which does not alter the USA CMake build. The dedicated `runtime_externs.h` declares 15 host ABI imports missing from the generated C header but deliberately provides no substitute implementations. A `nm -g` audit found 82 unresolved symbols across the archive (71 `*_recomp` runtime calls and 11 runtime/maths/dispatcher symbols); the eventual PC application must resolve all of them.
+
+The ROM-free GitHub Actions metadata workflow passed **75 tests**, including synthetic native CMake archive compilation and missing-input rejection: <https://github.com/Jake-Arnold/Goemon64Recomp/actions/runs/43774274464>. Native gameplay, actual runtime linking, overlay activation and UI are still untested. No generated Japanese game code or object file was committed.
+
 ## Verified input revisions (SHA-1)
 
 | File | Expected SHA-1 |
