@@ -60,6 +60,34 @@ python3 /path/to/Goemon64Recomp/tools/japan_port/probe_config.py \
 
 The source Splat configuration remains unchanged; the separate all-ASM configuration converts **189 C-designated subsegments** into assembly, recovering **24 extra executable functions** previously missing from the symbol table. The `refine_libultra.py` tool checks exact ROM SHA-1 and instruction words at `0x4A204`, `0x4A2B8` and `0x4A2E8`, then splits `func_80049604_4A204` (0xE8 bytes) into `send_mesg` (0xB4 bytes) and `handle_CpU` (0x34 bytes). Both are recognized runtime-supplied libultra symbols in the pinned N64Recomp `src/symbol_lists.cpp`. The no-ignored-functions diagnostic run finished in under one second on the local host.
 
+## Audio RSP proof: Japanese microcode is identical
+
+The audio RSP microcode used by the existing USA PC port (`aspMain.toml`) was located **byte-for-byte unchanged** in the Japanese decompressed ROM:
+
+| Parameter | USA | Japan |
+| --- | --- | --- |
+| ROM text offset | `0x546B0` | `0x54930` |
+| Text size | `0xE20` | `0xE20` |
+| RSP text address | `0x04001080` | `0x04001080` |
+| RSP text SHA-1 | `21e05bb9b4b3611e0cc2374c3ad6cc26adf2b385` | Same |
+
+The exact pinned `RSPRecomp` binary was run locally on both region-specific input configurations with the same `aspMain` name and original indirect branch targets. **Both processes exited 0, produced exactly 73,090 bytes of C++ output, and the generated `aspMain.cpp` files were byte-identical** (SHA-1 `12847fc9fac0b2d446d37a5bb8afc80d7da7c7e1`).
+
+The `tools/japan_port/rsp_config.py` source-only helper strictly verifies both decompressed ROM revisions, byte-identical RSP task contents, and the original USA `aspMain.toml` format. It then writes a new Japanese RSPRecomp config pointing at the shifted Japanese offset and an output C++ file outside version control:
+
+```bash
+python3 /path/to/Goemon64Recomp/tools/japan_port/rsp_config.py \
+  --usa-rom /path/to/mnsg/config/usa/baserom.decompressed.z64 \
+  --japan-rom /path/to/mnsg/config/japan_0/baserom.decompressed.z64 \
+  --usa-config /path/to/Goemon64Recomp/aspMain.toml \
+  --output-config /tmp/goemon-japan/aspMain-japan.toml \
+  --output-cpp /tmp/goemon-japan/rsp/aspMain.cpp
+
+/path/to/pinned/RSPRecomp /tmp/goemon-japan/aspMain-japan.toml
+```
+
+This confirms **the existing audio RSP task does not need a separate Japanese translation**. It does not yet validate audio running inside the native PC runtime.
+
 ## Verified input revisions (SHA-1)
 
 | File | Expected SHA-1 |
