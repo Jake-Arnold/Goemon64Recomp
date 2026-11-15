@@ -26,3 +26,9 @@ jobs:
         run: python -m unittest discover -s tools/japan_port -p "test_*.py" -v
       - name: Check native ROM decompressor for USA and Japan
         run: c++ -std=c++20 -Iinclude -Wall -Wextra -fsyntax-only src/game/rom_decompression.cpp
+      - name: Run synthetic USA and Japan native decompression regression
+        run: |
+          c++ -std=c++20 -O2 -Iinclude -Wall -Wextra \
+            src/game/rom_decompression.cpp tools/japan_port/test_runtime_decompression.cpp \
+            -o /tmp/goemon-region-decompression-test
+          /tmp/goemon-region-decompression-test
