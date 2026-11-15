@@ -48,6 +48,7 @@ def sections(splat: Path) -> list[dict]:
             "start": segment["start"],
             "end": segments[index + 1]["start"],
             "vram": segment["vram"],
+            "bss_size": segment.get("bss_size", 0),
         })
     if not result:
         raise ValueError("No executable section candidates in Splat input")
