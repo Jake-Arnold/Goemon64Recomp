@@ -147,6 +147,7 @@ The `merge_candidate_symbols.py` command accepts the locally generated Japanese 
 
 ```bash
 python3 tools/japan_port/merge_candidate_symbols.py \
+  --japan-splat /path/to/mnsg/config/japan_0/splat.yaml \
   --candidate-symbols /tmp/goemon-japan/japan-candidates.syms.toml \
   --candidate-relocations /tmp/goemon-japan/reloc-candidates.json \
   --output /tmp/goemon-japan/japan-PROVISIONAL.syms.toml
@@ -170,3 +171,47 @@ The report lists **missing and extra actual relocation triples** (type, site VRA
 
 A dedicated GitHub Actions workflow (`.github/workflows/japan-port-metadata.yml`) executes Python metadata unit tests on PR changes without needing ROMs, extracted assets, or N64Recomp. Local checks confirmed **13 new synthetic tests** for relocation extraction, difference reporting and TOML merging. The earlier ROM tests are also included in workflow discovery.
 
+
+## Shared audio RSP microcode and experimental N64Recomp input (15 November 2026)
+
+The 0xE20-byte audio RSP program referenced by `aspMain.toml` is **byte-for-byte identical** in both verified compressed source ROMs. USA offset: `0x546B0`; Japanese offset: `0x54930`. The 3,616-byte audio microcode SHA-1 is `21e05bb9b4b3611e0cc2374c3ad6cc26adf2b385`. This permits reusing the current `aspMain` recompilation for this audio microcode. It does not prove that every RSP microcode or audio/game integration path is identical.
+
+```bash
+python3 tools/japan_port/verify_rsp.py \
+  --usa "/path/to/Mystical Ninja Starring Goemon (USA).z64" \
+  --japan "/path/to/Ganbare Goemon - Neo Momoyama Bakufu no Odori (Japan).n64"
+```
+
+The experimental region-specific `mnsg.japan.toml` points N64Recomp at a **separate generated directory** and the Japanese candidate map. It intentionally retains only the shared, region-independent overlay **identifiers**, not the USA symbol addresses or instruction patch. It is not incorporated into the native CMake executable.
+
+Prepare all private inputs in one command from the extracted Japanese sources:
+
+```bash
+python3 tools/japan_port/prepare_japan_recomp.py \
+  --japan-splat /path/to/mnsg/config/japan_0/splat.yaml \
+  --japan-asm /path/to/mnsg/asm/japan_0 \
+  --japan-decompressed-rom /path/to/mnsg/config/japan_0/baserom.decompressed.z64
+```
+
+The tool enforces the pinned SHA-1, **72 sections**, **7,351 functions**, **6,434 relocations**, and the expected overlay identifiers, and places the provisional symbol TOML and ROM in ignored `build-generated/japan/` paths. The combined provisional TOML was independently generated from the current supplied Japanese extraction and parsed successfully. It is 1,009,693 bytes before any further cleanup.
+
+When a locally compiled `N64Recomp` executable is available, an **explicit exploratory trial** can be run with the same arguments plus `--run-recompiler --recompiler /absolute/path/to/N64Recomp`. A successful code-generation trial will still require relocation review, runtime integration, Japanese patch porting, boot tests, and gameplay verification before a playable PC port can be claimed.
+
+For the exact USA regression gate, run:
+
+```bash
+python3 tools/japan_port/compare_relocations.py \
+  --usa-relocations /tmp/goemon-usa/reloc-candidates.json \
+  --reference-symbols Goemon64RecompSyms/mnsg.syms.toml
+```
+
+The USA comparison is 70/70 exact section relocation triples, **6,351 records**. **Japanese counts remain candidates**, because Japan lacks an independent ground-truth relocation map and native PC boot is not yet demonstrated.
+
+### Next executable milestone
+
+1. Compile N64Recomp from the upstream source (not included in the supplied archives) in a clean Linux checkout.
+2. Run `prepare_japan_recomp.py` using the verified project-root resources and invoke the experimental Japanese N64Recomp input.
+3. Audit missing symbols, generated code and unresolved indirect branches, preserving the USA build.
+4. Only after code generation is independently validated, integrate a separate `Goemon64RecompiledJP` runtime and perform title-screen/gameplay validation.
+
+No proprietary game bytes, extracted MIPS code or compiled game code should be committed to the GitHub fork.
