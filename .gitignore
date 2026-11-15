@@ -66,3 +66,14 @@ RSPRecomp
 .idea
 build-*
 cmake-build-*
+
+# Japan source ROMs, generated code and extraction artifacts
+*.n64
+*.v64
+*.rom
+.splat/
+asm/japan_0/
+bin/japan_0/
+config/japan_0/baserom*
+config/japan_0/rommy.yaml
+build-generated/
