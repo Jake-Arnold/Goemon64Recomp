@@ -1,0 +1,35 @@
+name: Japan port software Vulkan test runtime
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/japan-native-recomp]
+    paths: [".github/workflows/japan-port-vulkan-test-sdk.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  software-vulkan:
+    runs-on: ubuntu-24.04
+    container:
+      image: debian:trixie
+    steps:
+      - name: Fetch x86-64 Lavapipe/Vulkan runtime packages
+        run: |
+          set -eu
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          mkdir -p "$GITHUB_WORKSPACE/build-sdk/partial"
+          apt-get -y -o APT::Keep-Downloaded-Packages=true \
+            -o Dir::Cache::archives="$GITHUB_WORKSPACE/build-sdk" install \
+            --no-install-recommends mesa-vulkan-drivers vulkan-tools
+          find "$GITHUB_WORKSPACE/build-sdk" -maxdepth 1 -name '*.deb' -printf '%f\n' > "$GITHUB_WORKSPACE/build-sdk/PACKAGES.txt"
+          test "$(wc -l < "$GITHUB_WORKSPACE/build-sdk/PACKAGES.txt")" -ge 1
+          printf 'Software Vulkan libraries for headless JP boot test only.\n' > "$GITHUB_WORKSPACE/build-sdk/README.txt"
+      - name: Upload software Vulkan packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: goemon-japan-software-vulkan-debian13
+          path: build-sdk/
+          if-no-files-found: error
+          retention-days: 2
