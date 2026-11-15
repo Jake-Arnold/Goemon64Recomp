@@ -41,3 +41,11 @@ The generated C referenced **15 host-runtime functions** not declared by `funcs.
 An archive-wide `nm -g` audit found **82 unique unresolved external symbols** after removing functions resolved inside the archive: 71 `*_recomp` host-runtime functions and 11 dispatch/math/compiler/runtime symbols. The majority are expected native runtime imports, but all must be resolved or deliberately implemented before **linking an executable**. The Japanese ROM handling, graphics, input, sound, overlays, UI, saves, native patches and boot/gameplay remain to be integrated and tested.
 
 Do not commit the compiled archive, `funcs_*.c`, generated headers or any ROM/asset bytes.
+
+## Runtime compatibility audit: memory mapping and I/O
+
+The pinned `klorfmorf/N64ModernRuntime` implementation in `librecomp/src/ultra_stubs.cpp` defines both `osMapTLB_recomp` and `osUnmapTLBAll_recomp`, but they are currently **no-op TODO stubs**. The generated Japanese functions `func_80001E50_2A50` and `func_80001F88_2B88` call them respectively. These routines belong to the game's data-loading code, and `wave_uty` contains a reference to `func_80001E50_2A50`. Actual runtime execution and the importance of the TLB mappings have not been established; the existing USA port may be able to execute the analogous paths without functional TLB emulation.
+
+The existing Goemon PC code also defines `osPiWriteIo_recomp` as an empty project-specific stub in `src/game/unknown_symbols.cpp`. Five Japanese call sites were found in `func_800017B0_23B0` and `func_800019E0_25E0`. These imports can link, but their no-op behaviour must be verified against Japanese runtime execution rather than presumed correct.
+
+**These are runtime validation risks, not native C compilation errors.** The static archive compiled without providing fabricated implementations. No Japanese gameplay success is claimed.
