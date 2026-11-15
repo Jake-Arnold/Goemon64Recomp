@@ -215,3 +215,27 @@ The USA comparison is 70/70 exact section relocation triples, **6,351 records**.
 4. Only after code generation is independently validated, integrate a separate `Goemon64RecompiledJP` runtime and perform title-screen/gameplay validation.
 
 No proprietary game bytes, extracted MIPS code or compiled game code should be committed to the GitHub fork.
+
+## Pinned N64Recomp host toolchain and Japanese code-generation probe
+
+The existing PC port pins its N64ModernRuntime submodule at `fc4592a31414daf0040c19907e0b1976b2e48a67`, whose nested N64Recomp revision is `07fcdac76da3e47105238d45defe83d56c2821f5`. We use that **exact** N64Recomp revision, not the latest upstream `main`, to reduce tool/runtime mismatches.
+
+A ROM-free GitHub Actions workflow, `.github/workflows/japan-port-recompilers.yml`, builds Linux x86-64 `N64Recomp` and `RSPRecomp` and uploads both as a downloadable workflow artifact. The first run passed all build, pin and artifact steps: [pinned recompiler build](https://github.com/Jake-Arnold/Goemon64Recomp/actions/runs/43771738688). This is a **host toolchain build**, not a game port.
+
+After regenerating the provisional Japanese symbol and relocation TOML with the latest scripts, create a diagnostic-only config outside the repository:
+
+```bash
+python3 tools/japan_port/probe_config.py \
+  --rom /tmp/goemon-japan/baserom.decompressed.z64 \
+  --symbols /tmp/goemon-japan/japan-PROVISIONAL.syms.toml \
+  --output-dir /tmp/goemon-japan/native-probe
+```
+
+This strictly verifies the expected 32 MiB Japanese ROM SHA-1, the 72 Japanese sections, the exact `recomp_entrypoint` alias at `0x80000400`, 57 relocatable overlay names, and that the supplied metadata includes the expanded BSS relocation inventory. It creates:
+
+- `japan.recomp.probe.toml` with Japanese-specific absolute input and output paths, no USA patches
+- `japan.overlays.txt` for the 57 relocatable overlays
+- `japan.probe-manifest.json` with source identity, candidate counts, and generated paths
+
+After obtaining the workflow artifact's Linux `N64Recomp` binary, the same command can add `--n64recomp /path/to/N64Recomp` to execute a native code-generation **probe** and capture its exit status. Neither a generated TOML nor a successful tool invocation proves a playable game: remaining tasks include Japanese data symbols, indirect targets, RSP validation, overlay registration, an isolated Japanese runtime and gameplay tests.
+
