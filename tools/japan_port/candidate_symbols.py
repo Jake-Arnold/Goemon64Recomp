@@ -2,7 +2,7 @@
 """Extract Japan function symbol candidates from locally generated Splat assembly.
 
 No ROM data or instructions are included in the output. Relocations, data
-symbols, indirect branch targets and some handwritten/C-only functions still
+symbols, indirect branch targets and some handwritten functions still
 require independent analysis. Do not claim this is N64Recomp-ready.
 """
 from __future__ import annotations
@@ -60,7 +60,10 @@ def parse_functions(asm_root: Path, sections: list[dict]) -> list[dict]:
         raise ValueError(f"Missing extracted assembly folder: {asm_root}")
     found = []
     for path in sorted(asm_root.rglob("*.s")):
-        if "data" in path.relative_to(asm_root).parts:
+        if ("data" in path.relative_to(asm_root).parts
+                or path.name.endswith((".data.s", ".rodata.s", ".bss.s"))):
+            # Splat can emit named data symbols as `nonmatching` declarations.
+            # They are not executable function starts, even in an all-asm split.
             continue
         source = path.read_text(errors="replace")
         matches = list(DECLARATION.finditer(source))
