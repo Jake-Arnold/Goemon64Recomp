@@ -55,7 +55,8 @@ def overlay_sections(splat: dict) -> list[dict]:
         if not isinstance(stop, dict):
             raise ValueError(f'Bad section end for {name}')
         result.append({'name':name,'start':seg['start'],
-                       'end':stop['start'],'vram':seg['vram']})
+                       'end':stop['start'],'vram':seg['vram'],
+                       'bss_size':seg.get('bss_size', 0)})
     if not result:
         raise ValueError('No relocatable overlay candidates')
     return result
@@ -69,6 +70,18 @@ def parse(asm_root: Path, splat_path: Path, rom_path: Path) -> dict:
     if digest.lower() != expected_sha1.lower():
         raise ValueError(f'Decompressed ROM SHA-1 mismatch: {digest} != {expected_sha1}')
     regions = overlay_sections(splat)
+    # Exact-ROM scoped non-relocations used to construct graphics segmented addresses.
+    # Each exclusion must be rediscovered verbatim or the audit fails.
+    exclusion_file = Path(__file__).with_name('segmented_graphics_exclusions.json')
+    exclusions = json.loads(exclusion_file.read_text())['rom_sha1_to_exclusions']
+    selected = exclusions.get(digest, [])
+    pending = {
+        (row['section'], row['type'], int(row['vram'], 16),
+         int(row['target_vram'], 16)) for row in selected
+    }
+    if len(pending) != len(selected):
+        raise ValueError('Duplicate graphics exclusion signatures')
+    suppressed = 0
     relocs = defaultdict(list)
     sites = set()
     checked_words = 0
@@ -115,17 +128,24 @@ def parse(asm_root: Path, splat_path: Path, rom_path: Path) -> dict:
                         raise ValueError(f'R_MIPS_26 encoding mismatch: {asm}:{line_number}')
             if relocation_type is None or target_vram is None:
                 continue
-            if not sec['vram'] <= target_vram < sec['vram'] + sec['end'] - sec['start']:
+            if not sec['vram'] <= target_vram < sec['vram'] + sec['end'] - sec['start'] + sec['bss_size']:
                 continue  # An absolute reference to a different overlay/game section.
             site=(sec['name'],pc)
             if site in sites:
                 raise ValueError(f'Duplicate relocation site {site} at {asm}:{line_number}')
             sites.add(site)
+            signature = (sec['name'], relocation_type, pc, target_vram)
+            if signature in pending:
+                pending.remove(signature)
+                suppressed += 1
+                continue
             relocs[sec['name']].append({
                 'type': relocation_type,
                 'vram': f'0x{pc:08X}',
                 'target_vram': f'0x{target_vram:08X}',
             })
+    if pending:
+        raise ValueError(f'Graphics-segment exclusion signatures not found: {sorted(pending)}')
     # HI16 and LO16 must pair for each target in each overlay.
     for section, records in relocs.items():
         totals = defaultdict(Counter)
@@ -143,10 +163,11 @@ def parse(asm_root: Path, splat_path: Path, rom_path: Path) -> dict:
         'sections_with_candidates': len(relocs),
         'checked_instruction_words': checked_words,
         'candidate_relocations': sum(counts.values()),
+        'excluded_segmented_graphics_references': suppressed,
         'types': dict(sorted(counts.items())),
         'per_section': dict(sorted(((name,len(items)) for name,items in relocs.items()),
                                    key=lambda item:int(item[0].split('_')[1]))),
-        'caveat': 'Conservative symbol-based candidates only; not an authoritative relocation table.',
+        'caveat': 'Verified against ROM/Splat and bounded including BSS, but still candidate data; Japan lacks an authoritative complete relocation table.',
         'relocations': dict(sorted(relocs.items(),key=lambda item:int(item[0].split('_')[1])))
     }
 
