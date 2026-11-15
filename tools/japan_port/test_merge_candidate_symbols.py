@@ -74,6 +74,21 @@ class TestMerge(unittest.TestCase):
         self.assertIn('0x08000110', output)
         self.assertEqual(statistics['relocations'], 2)
 
+    def test_zero_reloc_overlay_still_marked_relocatable(self):
+        # N64Recomp only registers a section as relocatable if its
+        # TOML includes a 'relocs' array (including relocs = []).
+        output, statistics = merge(SYMS, {
+            'source_sha1': JP_DECOMP,
+            'candidate_relocations': 0,
+            'relocations': {},
+        })
+        import tomllib
+        sections = tomllib.loads(output)['section']
+        self.assertNotIn('relocs', sections[0])
+        self.assertIn('relocs', sections[1])
+        self.assertEqual(sections[1]['relocs'], [])
+        self.assertEqual(statistics['relocations'], 0)
+
     def test_bss_limit_cannot_be_negative(self):
         with self.assertRaisesRegex(ValueError, 'Invalid BSS'):
             merge(SYMS, DATA, {'.file_24': -4})
