@@ -120,10 +120,19 @@ def render(sections: list[dict], functions: list[dict]) -> str:
             f'size = 0x{section["end"] - section["start"]:X}',
             "functions = [",
         ])
-        for function in sorted(by_section[section["name"]],
-                               key=lambda function: function["vram"]):
+        section_functions = sorted(by_section[section["name"]],
+                                   key=lambda function: function["vram"])
+        if section["name"] == "entry":
+            if (len(section_functions) != 1
+                    or section_functions[0]["vram"] != 0x80000400
+                    or section_functions[0]["size"] != 0x38):
+                raise ValueError("Japanese entrypoint must be the 0x38-byte function at 0x80000400")
+        for function in section_functions:
+            # PC runtime exports a fixed entrypoint name. The disassembler's
+            # generic name is valid for research but would break native linking.
+            name = "recomp_entrypoint" if section["name"] == "entry" else function["name"]
             lines.append(
-                f'    {{ name = "{function["name"]}", '
+                f'    {{ name = "{name}", '
                 f'vram = 0x{function["vram"]:08X}, '
                 f'size = 0x{function["size"]:X} }},'
             )
