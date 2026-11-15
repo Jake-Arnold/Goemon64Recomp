@@ -59,3 +59,17 @@ The Japanese Splat YAML references `config/japan_0/reloc_addrs/reloc_addrs.txt`,
 **Next:** reconstruct Japanese function/section/relocation metadata from the decompressed Japanese image and validated decomp mappings; generate independent Japanese recompiled functions and RSP code; then bring up a separate Japanese executable. The old USA symbol map and patches must not be reused as if addresses match.
 
 Licensing: preserve upstream GPLv3 COPYING and credits. Never commit ROMs, extracted assets, generated game instructions, assembly, object files or runtime ROM data.
+
+## Section candidate milestone
+
+The local source archive was inspected with the `sections.py` helper:
+
+```bash
+python3 tools/japan_port/sections.py \
+  --japan-splat /path/to/mnsg/config/japan_0/splat.yaml \
+  --usa-splat /path/to/mnsg/config/usa/splat.yaml \
+  --output /tmp/goemon-japan/sections.json
+```
+
+Observed: **72 candidate sections per region** (entry + main + 70 named overlays). **71 differ** in their recorded metadata (main + every overlay), while entry remains aligned. These counts agree with the 72 section declarations in the existing USA `Goemon64RecompSyms/mnsg.syms.toml`; the sample USA entry/main/overlay sizes match the Splat-derived spans. This is evidence for source-section structure, **not** proof of executable-function or relocation coverage. Japanese symbols must still be derived and validated independently.
+
