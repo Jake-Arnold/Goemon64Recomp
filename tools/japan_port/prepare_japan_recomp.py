@@ -20,11 +20,13 @@ try:
     from .candidate_symbols import sections, parse_functions, render
     from .reloc_candidates import parse as scan_relocations
     from .merge_candidate_symbols import merge, JP_DECOMP
+    from .complete_symbols import complete
     from .rom import verify_decompressed
 except ImportError:
     from candidate_symbols import sections, parse_functions, render
     from reloc_candidates import parse as scan_relocations
     from merge_candidate_symbols import merge, JP_DECOMP
+    from complete_symbols import complete
     from rom import verify_decompressed
 
 EXPECTED_SECTIONS = 72
@@ -70,7 +72,9 @@ def generate(repo_root: Path, splat: Path, asm_root: Path, rom: Path) -> dict:
         raise ValueError('Unexpected symbol/relocation counts: investigate before writing')
     validate_config(repo_root, sec)
     bss = {'.'+part['name']:part.get('bss_size',0) for part in sec}
-    combined, report = merge(render(sec, functions), relocations, bss)
+    combined, candidate_report = merge(render(sec, functions), relocations, bss)
+    combined, completion_report = complete(combined, rom.read_bytes())
+    report = {**candidate_report, **completion_report}
     output = repo_root / 'build-generated' / 'japan'
     output.mkdir(parents=True, exist_ok=True)
     (output / 'japan-PROVISIONAL.syms.toml').write_text(combined)
