@@ -79,7 +79,11 @@ def merge(symbols: str, inventory: dict, bss_sizes: dict[str, int] | None = None
         if len(matches)!=1:
             raise ValueError(f'{name} missing a single functions block')
         items=records.get(name.lstrip('.'),[])
-        if items:
+        # The pinned N64Recomp parser marks a section relocatable by the
+        # PRESENCE of a relocs array, including an empty one. Without this,
+        # zero-relocation overlays (.file_52 and .file_76) vanish from the
+        # generated overlay index and recompiler output fails.
+        if items or name in {f'.file_{index}' for index in range(24, 81)}:
             buf=['relocs = [']
             for item in sorted(items,key=lambda r:int(r['vram'],16)):
                 buf.append('    { type = "'+item['type']+'", vram = '+item['vram']+', target_vram = '+item['target_vram']+' },')
