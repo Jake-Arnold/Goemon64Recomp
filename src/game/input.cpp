@@ -14,6 +14,9 @@
 #ifdef GOEMON_JP_THREAD_STAGE2_ACTIVE
 namespace ultramodern { void report_guest_thread_reset_blockers(); }
 #endif
+#ifdef GOEMON_JP_GUEST_STAGE3_ACTIVE
+namespace ultramodern { void report_guest_shutdown_readiness(); }
+#endif
 
 constexpr float axis_threshold = 0.5f;
 
@@ -545,6 +548,10 @@ void recomp::poll_inputs() {
                 "Game continues without modification.\n");
 #ifdef GOEMON_JP_THREAD_STAGE2_ACTIVE
         ultramodern::report_guest_thread_reset_blockers();
+#endif
+#ifdef GOEMON_JP_GUEST_STAGE3_ACTIVE
+        // Diagnostic only; NEVER arm guest shutdown from input.
+        ultramodern::report_guest_shutdown_readiness();
 #endif
     }
     reset_was_held = reset_held;
