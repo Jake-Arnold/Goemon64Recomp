@@ -675,6 +675,11 @@ if(GOEMON_BUILD_JAPAN)
         "${CMAKE_SOURCE_DIR}/src/main/register_overlays_japan.cpp"
         "${CMAKE_SOURCE_DIR}/src/main/register_patches_japan.cpp")
     add_executable(Goemon64RecompiledJP ${JP_SOURCES})
+    # Linux-only standalone crash/session logging; never linked into USA.
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        target_sources(Goemon64RecompiledJP PRIVATE
+            "${CMAKE_SOURCE_DIR}/src/main/jp_session_logging.cpp")
+    endif()
     target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JAPAN_NATIVE)
     if(GOEMON_JP_TIMER_STAGE1)
         target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JP_TIMER_STAGE1_ACTIVE)
