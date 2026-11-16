@@ -6,6 +6,9 @@
 #include <cerrno>
 #include <csignal>
 #include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <initializer_list>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -109,6 +112,12 @@ void fatal_signal(int sig, siginfo_t* info, void* context) noexcept {
     restore.sa_handler = SIG_DFL;
     sigemptyset(&restore.sa_mask);
     sigaction(sig, &restore, nullptr);
+    // SIGSEGV and other synchronous signals are masked while inside their
+    // handler. Unblock before re-raising to preserve the normal core dump.
+    sigset_t unmask;
+    sigemptyset(&unmask);
+    sigaddset(&unmask, sig);
+    sigprocmask(SIG_UNBLOCK, &unmask, nullptr);
     kill(getpid(), sig);
     _exit(128 + sig);
 }
@@ -204,6 +213,8 @@ bool goemon_jp::logging::start_session(const char* version, const char* git_comm
         int file = ::mkstemps(writable.data(), 4); // retains the .log extension
         if (file < 0) return false;
         ::fcntl(file, F_SETFD, FD_CLOEXEC);
+        const int original_flags = ::fcntl(file, F_GETFL);
+        if (original_flags >= 0) ::fcntl(file, F_SETFL, original_flags | O_APPEND);
         ::fchmod(file, 0600);
 
         int fds[2];
