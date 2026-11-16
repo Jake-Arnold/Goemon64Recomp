@@ -155,6 +155,11 @@ public:
 #else
         version_string += " [join-prep-off]";
 #endif
+#ifdef GOEMON_JP_HOST_STAGE6_ACTIVE
+        version_string += " [host-audit]";
+#else
+        version_string += " [host-off]";
+#endif
 #endif
         constructor.Bind("version_number", &version_string);
 
