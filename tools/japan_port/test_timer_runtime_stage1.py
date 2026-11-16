@@ -44,11 +44,16 @@ class NativeTimerLifecycleTests(unittest.TestCase):
         self.assertLess(worker.index("if (shutdown_requested) {"), worker.index("PTR(OSTimer) cur_timer_"))
 
     def test_runtime_joins_timer_before_rdram_unmap(self) -> None:
+        self.assertIn("namespace ultramodern { void shutdown_timers(); }", self.timer)
         self.assertIn("namespace ultramodern { void shutdown_timers(); }", self.recomp)
-        self.assertLess(self.recomp.index("game_thread.join();"),
-                        self.recomp.index("ultramodern::shutdown_timers();"))
-        self.assertLess(self.recomp.index("ultramodern::shutdown_timers();"),
-                        self.recomp.index("munmap(rdram, allocation_size)"))
+        # Two munmap calls exist: one on allocation/mprotect failure,
+        # another at the end of normal shutdown. Check only the latter.
+        normal_shutdown = self.recomp.split("    game_thread.join();", 1)[1]
+        self.assertIn("    ultramodern::shutdown_timers();", normal_shutdown)
+        self.assertLess(normal_shutdown.index("    ultramodern::shutdown_timers();"),
+                        normal_shutdown.index("    ultramodern::join_event_threads();"))
+        self.assertLess(normal_shutdown.index("    ultramodern::shutdown_timers();"),
+                        normal_shutdown.rindex("munmap(rdram, allocation_size)"))
 
     def test_refuses_unexpected_repatch(self) -> None:
         with self.assertRaises(ValueError):
