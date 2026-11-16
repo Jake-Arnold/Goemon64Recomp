@@ -493,6 +493,10 @@ if(GOEMON_BUILD_JAPAN)
     option(GOEMON_JP_QUEUE_STAGE4 "Enable JP queue and cleaner lifecycle diagnostics" OFF)
     option(GOEMON_JP_JOIN_STAGE5 "Enable inactive guarded guest join barrier and scheduler stop gates" OFF)
     option(GOEMON_JP_EVENTS_STAGE6 "Enable JP native event worker lifecycle and task census" OFF)
+    option(GOEMON_JP_BOOT_STAGE7 "Enable JP native boot, saving and audio lifecycle audit" OFF)
+    if(GOEMON_JP_BOOT_STAGE7 AND NOT GOEMON_JP_EVENTS_STAGE6)
+        message(FATAL_ERROR "GOEMON_JP_BOOT_STAGE7 requires GOEMON_JP_EVENTS_STAGE6=ON")
+    endif()
     if(GOEMON_JP_EVENTS_STAGE6 AND NOT GOEMON_JP_JOIN_STAGE5)
         message(FATAL_ERROR "GOEMON_JP_EVENTS_STAGE6 requires GOEMON_JP_JOIN_STAGE5=ON")
     endif()
@@ -601,6 +605,55 @@ if(GOEMON_BUILD_JAPAN)
             endif()
         endif()
     endif()
+    # Stage 7 additionally observes native boot, saving and audio callbacks.
+    # The timer-derived recomp.cpp source remains generated but is replaced
+    # by a distinct stage7 copy; never modify pinned runtime sources.
+    if(GOEMON_JP_BOOT_STAGE7)
+        set(JP_STAGE7_SCRIPT "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_native_boot_save_audio_stage7.py")
+        set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${JP_STAGE7_SCRIPT}")
+        execute_process(
+            COMMAND "${Python3_EXECUTABLE}" "${JP_STAGE7_SCRIPT}"
+                --runtime "${JP_TIMER_RUNTIME_ROOT}"
+                --output "${JP_TIMER_GENERATED_DIR}"
+            RESULT_VARIABLE JP_STAGE7_RESULT
+            OUTPUT_VARIABLE JP_STAGE7_OUTPUT
+            ERROR_VARIABLE JP_STAGE7_ERROR)
+        if(NOT JP_STAGE7_RESULT EQUAL 0)
+            message(FATAL_ERROR
+                "JP boot/save/audio stage7 source generation failed:\n"
+                "${JP_STAGE7_OUTPUT}\n${JP_STAGE7_ERROR}")
+        endif()
+        message(STATUS "${JP_STAGE7_OUTPUT}")
+
+        get_target_property(JP_STAGE7_RECOMP_SOURCES librecomp SOURCES)
+        list(FIND JP_STAGE7_RECOMP_SOURCES "${JP_TIMER_GENERATED_DIR}/recomp.cpp"
+            JP_STAGE7_OLD_RECOMP)
+        list(FIND JP_STAGE7_RECOMP_SOURCES
+            "${JP_TIMER_RUNTIME_ROOT}/librecomp/src/pi.cpp"
+            JP_STAGE7_OLD_PI)
+        if(JP_STAGE7_OLD_RECOMP EQUAL -1 OR JP_STAGE7_OLD_PI EQUAL -1)
+            message(FATAL_ERROR "JP stage7 original recomp timer copy or pi.cpp was not found")
+        endif()
+        list(REMOVE_ITEM JP_STAGE7_RECOMP_SOURCES
+            "${JP_TIMER_GENERATED_DIR}/recomp.cpp"
+            "${JP_TIMER_RUNTIME_ROOT}/librecomp/src/pi.cpp")
+        set_property(TARGET librecomp PROPERTY SOURCES ${JP_STAGE7_RECOMP_SOURCES})
+        target_sources(librecomp PRIVATE
+            "${JP_TIMER_GENERATED_DIR}/recomp_stage7.cpp"
+            "${JP_TIMER_GENERATED_DIR}/pi_stage7.cpp")
+
+        get_target_property(JP_STAGE7_AUDIO_SOURCES ultramodern SOURCES)
+        list(FIND JP_STAGE7_AUDIO_SOURCES
+            "${JP_TIMER_RUNTIME_ROOT}/ultramodern/src/audio.cpp"
+            JP_STAGE7_OLD_AUDIO)
+        if(JP_STAGE7_OLD_AUDIO EQUAL -1)
+            message(FATAL_ERROR "JP stage7 original audio.cpp was not found")
+        endif()
+        list(REMOVE_ITEM JP_STAGE7_AUDIO_SOURCES
+            "${JP_TIMER_RUNTIME_ROOT}/ultramodern/src/audio.cpp")
+        set_property(TARGET ultramodern PROPERTY SOURCES ${JP_STAGE7_AUDIO_SOURCES})
+        target_sources(ultramodern PRIVATE "${JP_TIMER_GENERATED_DIR}/audio_stage7.cpp")
+    endif()
     # Reuse the existing frontend sources and shared shader/icon build rules.
     get_target_property(JP_SOURCES Goemon64Recompiled SOURCES)
     list(REMOVE_ITEM JP_SOURCES
@@ -628,6 +681,9 @@ if(GOEMON_BUILD_JAPAN)
     endif()
     if(GOEMON_JP_EVENTS_STAGE6)
         target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JP_EVENTS_STAGE6_ACTIVE)
+    endif()
+    if(GOEMON_JP_BOOT_STAGE7)
+        target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JP_BOOT_STAGE7_ACTIVE)
     endif()
     # Regenerate the build-commit identifier on every JP build. The script
     # writes only when content changes; incremental compilation stays fast.
