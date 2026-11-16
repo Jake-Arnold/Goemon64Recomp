@@ -39,11 +39,18 @@ namespace recomp {
         DEFINE_INPUT(X_AXIS_NEG, 0, "Left", "Used to move and for steering while swimming. Used to control the cursor in the cockpit while controlling Impact.") \
         DEFINE_INPUT(X_AXIS_POS, 0, "Right", "Used to move and for steering while swimming. Used to control the cursor in the cockpit while controlling Impact.") \
 
+#ifdef GOEMON_JAPAN_NATIVE
+    #define DEFINE_JP_RESET_INPUT() \
+        DEFINE_INPUT(RESET_GAME, 0, "Reset Game", "Request an N64 reset; backend not yet enabled in this build.")
+#else
+    #define DEFINE_JP_RESET_INPUT()
+#endif
+
     #define DEFINE_RECOMP_UI_INPUTS() \
         DEFINE_INPUT(TOGGLE_MENU, 0, "Toggle Menu", "Open or close this configuration menu from in game.") \
         DEFINE_INPUT(ACCEPT_MENU, 0, "Accept (Menu)", "In the recomp interface, performs the action for the currently highlighted item. Like pressing a button, or toggling a switch.") \
         DEFINE_INPUT(APPLY_MENU, 0, "Apply (Menu)", "In the recomp interface, if changes are made to a configuration that requires applying your settings, this will apply the current changes.") \
-        DEFINE_INPUT(RESET_GAME, 0, "Reset Game", "Request a hardware-style N64 reset. The native reset engine is not yet enabled in this build.")
+        DEFINE_JP_RESET_INPUT()
 
     #define DEFINE_ALL_INPUTS() \
         DEFINE_N64_AXIS_INPUTS() \
@@ -119,7 +126,9 @@ namespace recomp {
         std::vector<InputField> toggle_menu;
         std::vector<InputField> accept_menu;
         std::vector<InputField> apply_menu;
+#ifdef GOEMON_JAPAN_NATIVE
         std::vector<InputField> reset_game;
+#endif
     };
 
     inline const std::vector<InputField>& get_default_mapping_for_input(const DefaultN64Mappings& defaults, const GameInput input) {
@@ -146,7 +155,9 @@ namespace recomp {
             case GameInput::TOGGLE_MENU: return defaults.toggle_menu;
             case GameInput::ACCEPT_MENU: return defaults.accept_menu;
             case GameInput::APPLY_MENU: return defaults.apply_menu;
+#ifdef GOEMON_JAPAN_NATIVE
             case GameInput::RESET_GAME: return defaults.reset_game;
+#endif
             default: return empty_input_field;
         }
     }
