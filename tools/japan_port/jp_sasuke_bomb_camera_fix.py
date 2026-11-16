@@ -106,7 +106,7 @@ def inject(source: str) -> str:
         " D_8020CBF0.\n"
         f"{indent}{PATCH_LINE}\n"
     )
-    patched = source[:start + call.start()] + insertion + source[start + call.start():]
+    patched = source[:start + line_start] + insertion + source[start + line_start:]
     pstart, pend = find_function(patched)
     if patched[pstart:pend].count(PATCH_LINE) != 1:
         raise ValueError("Sasuke bomb camera callsite was not patched uniquely")
