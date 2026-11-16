@@ -394,9 +394,11 @@ const recomp::DefaultN64Mappings recomp::default_n64_keyboard_mappings = {
     .apply_menu = {
         {.input_type = (uint32_t)InputType::Keyboard, .input_id = SDL_SCANCODE_F}
     },
+#ifdef GOEMON_JAPAN_NATIVE
     .reset_game = {
         {.input_type = (uint32_t)InputType::Keyboard, .input_id = SDL_SCANCODE_F8}
-    }
+    },
+#endif
 };
 
 const recomp::DefaultN64Mappings recomp::default_n64_controller_mappings = {
@@ -468,7 +470,9 @@ const recomp::DefaultN64Mappings recomp::default_n64_controller_mappings = {
         {.input_type = (uint32_t)InputType::ControllerDigital, .input_id = SDL_CONTROLLER_BUTTON_WEST},
         {.input_type = (uint32_t)InputType::ControllerDigital, .input_id = SDL_CONTROLLER_BUTTON_START}
     },
-    .reset_game = {}
+#ifdef GOEMON_JAPAN_NATIVE
+    .reset_game = {},
+#endif
 };
 
 void recomp::poll_inputs() {
