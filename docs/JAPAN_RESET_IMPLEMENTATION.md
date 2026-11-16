@@ -181,3 +181,9 @@ snapshot. It does not drop, replay or clear queued work. See
 same-process reset. A future generation-scoped stop must quiesce all
 guest and native workers and settle every queue before reinitialising
 boot/RDRAM while preserving the PC process and window.
+
+v0.2.14-dev adds Japanese Linux **automatic persistent session logging**,
+including diagnostic stdout/stderr from desktop launches, per-launch
+log files, a stable `latest.log` shortcut and fatal-signal breadcrumbs.
+See `docs/JAPAN_PERSISTENT_SESSION_LOGS.md`. Logging is independent of
+F8 reset and does not change shutdown or N64 memory semantics.
