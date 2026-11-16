@@ -78,8 +78,17 @@ def inject(source: str) -> str:
     start, end = find_function(source)
     body = source[start:end]
     if MARKER in source:
-        if source.count(MARKER) == 1 and body.count(PATCH_LINE) == 1:
-            return source  # Intentional safe repeat without rewriting the file.
+        # Repeated builds must not accept a marker that was moved away from
+        # the exact camera call, or a partial edit to the original delay slot.
+        calls = list(CALL.finditer(body))
+        loads = list(LOAD.finditer(body))
+        marker_at = body.find(MARKER)
+        patch_at = body.find(PATCH_LINE)
+        if (source.count(MARKER) == 1 and body.count(PATCH_LINE) == 1
+                and len(calls) == 1 and len(loads) >= 1
+                and loads[-1].end() < marker_at < patch_at < calls[0].start()
+                and calls[0].start() - patch_at < 250):
+            return source  # Exact patch still at its verified location.
         raise ValueError("Malformed or duplicated Sasuke bomb camera patch")
     if PATCH_LINE in source:
         raise ValueError("Camera fix already applied without verified marker")
