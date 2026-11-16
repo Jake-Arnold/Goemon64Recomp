@@ -144,5 +144,6 @@ is **not** expected in this experimental build. Test remapping in
 one request per press. The branch must remain draft unless this safety
 preflight passes.
 
-The next semantic-version increment, once true reset is implemented,
-is `v0.2.5-dev`.
+v0.2.5-dev adds the opt-in, joinable timer lifecycle prerequisite; see
+`docs/JAPAN_RESET_TIMER_STAGE1.md`. It still does not reset the game.
+The next development version will be v0.2.6-dev, not a reuse of v0.2.5-dev.
