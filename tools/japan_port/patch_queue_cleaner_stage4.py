@@ -62,7 +62,7 @@ def instrument_threads(original: str) -> str:
         "    const auto joined = jp_guest_threads_joined.load(std::memory_order_acquire);\n"
         "    std::fprintf(stderr,\n"
         "        \"[Goemon JP cleaner] created=%llu finished=%llu joined=%llu \"\n"
-        "        \"active=%llu unjoined=%llu; queue drained, guest shutdown NOT proven.\\\\n\",\n"
+        "        \"active=%llu unjoined=%llu; queue drained, guest shutdown NOT proven.\\n\",\n"
         "        static_cast<unsigned long long>(created),\n"
         "        static_cast<unsigned long long>(finished),\n"
         "        static_cast<unsigned long long>(joined),\n"
