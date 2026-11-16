@@ -166,6 +166,13 @@ quiescence, or RDRAM reinitialisation is implemented. v0.2.11-dev adds a read-on
 pending RSP task counters, and a normal-exit report of the original event
 join order. See `docs/JAPAN_RESET_NATIVE_EVENTS_STAGE6.md`. This only
 accounts for three native event workers; it does not stop guest threads,
-reinitialise RDRAM, or perform a same-PID reset. The next reset milestone
-must coordinate the native boot thread, timer, RSP/VI/graphics/audio/save
-workers, queues and guest generations before entering the boot sequence.
+reinitialise RDRAM, or perform a same-PID reset.
+v0.2.12-dev adds native Game Start Thread, asynchronous save worker,
+synchronous runtime audio-dispatch and SDL queued-audio diagnostics. It
+preserves file writes, playback, the existing event/timer shutdown order,
+and the pinned runtime submodule. See
+`docs/JAPAN_RESET_BOOT_SAVE_AUDIO_STAGE7.md`. All stage-7 shutdown
+predicates are inactive; this is an ownership census, NOT a reset.
+The next milestone must coordinate guest generations and all native
+workers, prove save/audio safety, and reinitialize boot/RDRAM while
+preserving the PC process and window.
