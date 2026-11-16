@@ -145,6 +145,11 @@ public:
 #else
         version_string += " [guest-prep-off]";
 #endif
+#ifdef GOEMON_JP_QUEUE_STAGE4_ACTIVE
+        version_string += " [queue-audit]";
+#else
+        version_string += " [queue-off]";
+#endif
 #endif
         constructor.Bind("version_number", &version_string);
 
