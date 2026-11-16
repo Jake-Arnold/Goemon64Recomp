@@ -171,7 +171,7 @@ class GuestJoinStage5Tests(unittest.TestCase):
             patch.instrument_scheduler(self.scheduler)
         # Fail closed even if a copied generated file lost its header.
         partial = self.scheduler.replace(
-            "// JP stage-5 scheduler stop gate; original submodule unchanged.\\n",
+            "// JP stage-5 scheduler stop gate; original submodule unchanged.\n",
             "", 1,
         )
         with self.assertRaisesRegex(ValueError, "already applied"):
