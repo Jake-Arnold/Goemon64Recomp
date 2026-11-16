@@ -154,4 +154,5 @@ registry, stop-request scaffolding and cooperative scheduler checkpoints,
 without arming a shutdown in gameplay. See `docs/JAPAN_RESET_GUEST_STAGE3.md`.
 It is not a complete quiescence/join barrier: native main-thread, RSP/VI,
 message queues and the thread cleaner still require coordination. The
-next development version is v0.2.8-dev.
+next reset development version is v0.2.9-dev; v0.2.8-dev is dedicated
+to the scene 129 file 80 compatibility regression and does not enable reset.
