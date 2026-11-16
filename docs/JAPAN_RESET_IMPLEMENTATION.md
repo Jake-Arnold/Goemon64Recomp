@@ -162,6 +162,10 @@ v0.2.10-dev adds a guarded, inactive guest-host-thread join predicate,
 a future-stop scheduling gate, join notifications, and F8-only readiness
 diagnostics. See `docs/JAPAN_RESET_GUEST_JOIN_STAGE5.md`. The predicate
 cannot be invoked by gameplay; no guest termination, full host-worker
-quiescence, or RDRAM reinitialisation is implemented. The next reset
-milestone must coordinate native boot/event/render/audio/save workers,
-quiesce every guest host thread, and verify a same-PID boot transaction.
+quiescence, or RDRAM reinitialisation is implemented. v0.2.11-dev adds a read-only VI/graphics/SP native event-worker census,
+pending RSP task counters, and a normal-exit report of the original event
+join order. See `docs/JAPAN_RESET_NATIVE_EVENTS_STAGE6.md`. This only
+accounts for three native event workers; it does not stop guest threads,
+reinitialise RDRAM, or perform a same-PID reset. The next reset milestone
+must coordinate the native boot thread, timer, RSP/VI/graphics/audio/save
+workers, queues and guest generations before entering the boot sequence.
