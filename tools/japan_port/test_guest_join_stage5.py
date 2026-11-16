@@ -43,6 +43,7 @@ class GuestJoinStage5Tests(unittest.TestCase):
         self.assertIn("jp_guest_creations_in_flight.load(std::memory_order_acquire) == 0", predicate)
         self.assertIn("jp_guest_contexts.empty()", predicate)
         self.assertIn("jp_guest_threads_created.load(std::memory_order_acquire) ==", predicate)
+        self.assertIn("jp_guest_threads_finished.load(std::memory_order_acquire)", predicate)
         self.assertIn("jp_guest_threads_joined.load(std::memory_order_acquire)", predicate)
         self.assertIn("jp_guest_join_cv.wait_for(", predicate)
         self.assertIn("std::chrono::milliseconds{timeout_ms}", predicate)
@@ -103,6 +104,16 @@ class GuestJoinStage5Tests(unittest.TestCase):
         self.assertIn("void ultramodern::schedule_running_thread(", sched)
         self.assertIn("void ultramodern::check_running_queue(", sched)
         self.assertIn("ultramodern::thread_queue_insert(", sched)
+
+    def test_new_guest_create_gate_precedes_guest_memory_access(self) -> None:
+        method = self.threads.split('extern "C" void osCreateThread(', 1)[1].split(
+            'extern "C" void osStopThread(', 1
+        )[0]
+        self.assertLess(
+            method.index("guest_shutdown_requested_for_future_reset()"),
+            method.index("OSThread *t = TO_PTR(OSThread, t_);"),
+        )
+        self.assertIn("throw ultramodern::thread_terminated{};", method)
 
     def test_new_guest_start_gate_precedes_guest_state(self) -> None:
         method = self.threads.split('extern "C" void osStartThread(', 1)[1].split(
