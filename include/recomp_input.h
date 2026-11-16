@@ -42,7 +42,8 @@ namespace recomp {
     #define DEFINE_RECOMP_UI_INPUTS() \
         DEFINE_INPUT(TOGGLE_MENU, 0, "Toggle Menu", "Open or close this configuration menu from in game.") \
         DEFINE_INPUT(ACCEPT_MENU, 0, "Accept (Menu)", "In the recomp interface, performs the action for the currently highlighted item. Like pressing a button, or toggling a switch.") \
-        DEFINE_INPUT(APPLY_MENU, 0, "Apply (Menu)", "In the recomp interface, if changes are made to a configuration that requires applying your settings, this will apply the current changes.")
+        DEFINE_INPUT(APPLY_MENU, 0, "Apply (Menu)", "In the recomp interface, if changes are made to a configuration that requires applying your settings, this will apply the current changes.") \
+        DEFINE_INPUT(RESET_GAME, 0, "Reset Game", "Request a hardware-style N64 reset. The native reset engine is not yet enabled in this build.")
 
     #define DEFINE_ALL_INPUTS() \
         DEFINE_N64_AXIS_INPUTS() \
@@ -118,6 +119,7 @@ namespace recomp {
         std::vector<InputField> toggle_menu;
         std::vector<InputField> accept_menu;
         std::vector<InputField> apply_menu;
+        std::vector<InputField> reset_game;
     };
 
     inline const std::vector<InputField>& get_default_mapping_for_input(const DefaultN64Mappings& defaults, const GameInput input) {
@@ -144,6 +146,7 @@ namespace recomp {
             case GameInput::TOGGLE_MENU: return defaults.toggle_menu;
             case GameInput::ACCEPT_MENU: return defaults.accept_menu;
             case GameInput::APPLY_MENU: return defaults.apply_menu;
+            case GameInput::RESET_GAME: return defaults.reset_game;
             default: return empty_input_field;
         }
     }
