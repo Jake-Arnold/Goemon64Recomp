@@ -35,6 +35,23 @@ class GuestJoinStage5Tests(unittest.TestCase):
         self.assertNotIn("jp_guest_stop_requested", self.raw_sched)
         self.assertNotIn("jp_send_waits", self.raw_queue)
 
+    def test_join_api_integer_type_is_declared_after_header(self) -> None:
+        # This declaration precedes the original N64ModernRuntime includes.
+        # A prior build failed because uint32_t was not declared here.
+        generated = self.threads
+        early_header = generated.index("#include <cstdint>")
+        declaration = generated.index(
+            "bool wait_for_guest_joins_for_future_reset(std::uint32_t timeout_ms);"
+        )
+        definition = generated.index(
+            "bool ultramodern::wait_for_guest_joins_for_future_reset(std::uint32_t timeout_ms)"
+        )
+        self.assertLess(early_header, declaration)
+        self.assertLess(declaration, definition)
+        self.assertEqual(
+            generated[:declaration].count("#include <cstdint>"), 1,
+        )
+
     def test_join_predicate_requires_stop_request(self) -> None:
         predicate = self.threads.split(
             "bool ultramodern::wait_for_guest_joins_for_future_reset(", 1
