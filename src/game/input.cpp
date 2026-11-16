@@ -1,4 +1,5 @@
 #include <atomic>
+#include <cstdio>
 #include <mutex>
 
 #include "ultramodern/ultramodern.hpp"
@@ -392,6 +393,9 @@ const recomp::DefaultN64Mappings recomp::default_n64_keyboard_mappings = {
     },
     .apply_menu = {
         {.input_type = (uint32_t)InputType::Keyboard, .input_id = SDL_SCANCODE_F}
+    },
+    .reset_game = {
+        {.input_type = (uint32_t)InputType::Keyboard, .input_id = SDL_SCANCODE_F8}
     }
 };
 
@@ -463,7 +467,8 @@ const recomp::DefaultN64Mappings recomp::default_n64_controller_mappings = {
     .apply_menu = {
         {.input_type = (uint32_t)InputType::ControllerDigital, .input_id = SDL_CONTROLLER_BUTTON_WEST},
         {.input_type = (uint32_t)InputType::ControllerDigital, .input_id = SDL_CONTROLLER_BUTTON_START}
-    }
+    },
+    .reset_game = {}
 };
 
 void recomp::poll_inputs() {
@@ -511,6 +516,28 @@ void recomp::poll_inputs() {
         save_was_held = save_is_held;
     }
     #endif
+
+#if defined(GOEMON_JAPAN_NATIVE)
+    // Input plumbing only: the pinned runtime cannot safely reboot its
+    // guest OSThreads and RDRAM yet. Do not exit or restart the process.
+    // Track button state while capturing input so a stale press cannot
+    // trigger the request on returning to gameplay.
+    bool reset_held = false;
+    for (size_t slot = 0; slot < recomp::bindings_per_input; ++slot) {
+        reset_held |= recomp::get_input_digital(
+            recomp::get_input_binding(recomp::GameInput::RESET_GAME, slot, recomp::InputDevice::Keyboard));
+        reset_held |= recomp::get_input_digital(
+            recomp::get_input_binding(recomp::GameInput::RESET_GAME, slot, recomp::InputDevice::Controller));
+    }
+    static bool reset_was_held = true;
+    if (reset_held && !reset_was_held && ultramodern::is_game_started() &&
+        !recomp::game_input_disabled() && !recomp::all_input_disabled()) {
+        fprintf(stderr,
+                "[Goemon JP reset] Request received; native reset backend not installed. "
+                "Game continues without modification.\n");
+    }
+    reset_was_held = reset_held;
+#endif
 }
 
 void recomp::set_rumble(int controller_num, bool on) {
