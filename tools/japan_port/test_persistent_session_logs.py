@@ -165,6 +165,7 @@ class PersistentLogTests(unittest.TestCase):
 
         def launch_without_terminal():
             resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+            os.close(0)
             os.close(1)
             os.close(2)
 
