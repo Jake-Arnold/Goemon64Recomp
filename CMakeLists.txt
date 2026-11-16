@@ -494,6 +494,10 @@ if(GOEMON_BUILD_JAPAN)
     option(GOEMON_JP_JOIN_STAGE5 "Enable inactive guarded guest join barrier and scheduler stop gates" OFF)
     option(GOEMON_JP_EVENTS_STAGE6 "Enable JP native event worker lifecycle and task census" OFF)
     option(GOEMON_JP_BOOT_STAGE7 "Enable JP native boot, saving and audio lifecycle audit" OFF)
+    option(GOEMON_JP_GRAPHICS_STAGE8 "Enable JP graphics action queue settlement audit" OFF)
+    if(GOEMON_JP_GRAPHICS_STAGE8 AND NOT GOEMON_JP_BOOT_STAGE7)
+        message(FATAL_ERROR "GOEMON_JP_GRAPHICS_STAGE8 requires GOEMON_JP_BOOT_STAGE7=ON")
+    endif()
     if(GOEMON_JP_BOOT_STAGE7 AND NOT GOEMON_JP_EVENTS_STAGE6)
         message(FATAL_ERROR "GOEMON_JP_BOOT_STAGE7 requires GOEMON_JP_EVENTS_STAGE6=ON")
     endif()
@@ -513,7 +517,15 @@ if(GOEMON_BUILD_JAPAN)
         message(FATAL_ERROR "GOEMON_JP_THREAD_STAGE2 requires GOEMON_JP_TIMER_STAGE1=ON")
     endif()
     if(GOEMON_JP_THREAD_STAGE2)
-        if(GOEMON_JP_EVENTS_STAGE6)
+        if(GOEMON_JP_GRAPHICS_STAGE8)
+            set(JP_THREAD_SCRIPT "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_graphics_queue_stage8.py")
+            set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+                "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_native_events_stage6.py"
+                "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_guest_join_stage5.py"
+                "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_queue_cleaner_stage4.py"
+                "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_guest_quiescence_stage3.py"
+                "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_guest_threads_runtime.py")
+        elseif(GOEMON_JP_EVENTS_STAGE6)
             set(JP_THREAD_SCRIPT "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_native_events_stage6.py")
             set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
                 "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_guest_join_stage5.py"
@@ -684,6 +696,9 @@ if(GOEMON_BUILD_JAPAN)
     endif()
     if(GOEMON_JP_BOOT_STAGE7)
         target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JP_BOOT_STAGE7_ACTIVE)
+    endif()
+    if(GOEMON_JP_GRAPHICS_STAGE8)
+        target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JP_GRAPHICS_STAGE8_ACTIVE)
     endif()
     # Regenerate the build-commit identifier on every JP build. The script
     # writes only when content changes; incremental compilation stays fast.
