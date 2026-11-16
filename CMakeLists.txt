@@ -447,6 +447,19 @@ if(GOEMON_BUILD_JAPAN)
         "${CMAKE_SOURCE_DIR}/src/main/register_patches_japan.cpp")
     add_executable(Goemon64RecompiledJP ${JP_SOURCES})
     target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JAPAN_NATIVE)
+    # Regenerate the build-commit identifier on every JP build. The script
+    # writes only when content changes; incremental compilation stays fast.
+    set(JP_BUILD_ID_HEADER "${CMAKE_CURRENT_BINARY_DIR}/goemon_japan_build_id.h")
+    add_custom_target(goemon_japan_build_id
+        COMMAND "${CMAKE_COMMAND}"
+            "-DGOEMON_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
+            "-DGOEMON_OUTPUT=${JP_BUILD_ID_HEADER}"
+            -P "${CMAKE_SOURCE_DIR}/tools/japan_port/write_build_id.cmake"
+        BYPRODUCTS "${JP_BUILD_ID_HEADER}"
+        COMMENT "Updating Japanese native build fingerprint"
+        VERBATIM)
+    add_dependencies(Goemon64RecompiledJP goemon_japan_build_id)
+    target_include_directories(Goemon64RecompiledJP PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
     get_target_property(JP_INCLUDES Goemon64Recompiled INCLUDE_DIRECTORIES)
     get_target_property(JP_COMPILE_OPTS Goemon64Recompiled COMPILE_OPTIONS)
     get_target_property(JP_LINK_OPTS Goemon64Recompiled LINK_OPTIONS)

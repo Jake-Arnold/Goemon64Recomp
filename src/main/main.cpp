@@ -7,6 +7,10 @@
 #include <numeric>
 #include <stdexcept>
 #include <cinttypes>
+#include <cstring>
+#ifdef GOEMON_JAPAN_NATIVE
+#include "goemon_japan_build_id.h"
+#endif
 
 #include "nfd.h"
 
@@ -56,7 +60,7 @@
 
 #include "../../lib/rt64/src/contrib/stb/stb_image.h"
 
-const std::string version_string = "0.2.2-dev";
+const std::string version_string = "0.2.3-dev";
 
 template<typename... Ts>
 void exit_error(const char* str, Ts ...args) {
@@ -150,7 +154,13 @@ ultramodern::renderer::WindowHandle create_window(ultramodern::gfx_callbacks_t::
     flags |= SDL_WINDOW_VULKAN;
 #endif
 
-    window = SDL_CreateWindow("Goemon 64: Recompiled", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1600, 960,  flags);
+#ifdef GOEMON_JAPAN_NATIVE
+    const std::string window_title = "Goemon 64: Recompiled JP v" + version_string +
+        " (" + GOEMON_JP_BUILD_COMMIT + (GOEMON_JP_BUILD_DIRTY ? "-dirty" : "") + ")";
+#else
+    const std::string window_title = "Goemon 64: Recompiled";
+#endif
+    window = SDL_CreateWindow(window_title.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1600, 960, flags);
 #if defined(__linux__)
     SetImageAsIcon("icons/512.png",window);
     if (ultramodern::renderer::get_graphics_config().wm_option == ultramodern::renderer::WindowMode::Fullscreen) { // TODO: Remove once RT64 gets native fullscreen support on Linux
@@ -580,8 +590,16 @@ void reorder_texture_pack(recomp::mods::ModContext&) {
 #define REGISTER_FUNC(name) recomp::overlays::register_base_export(#name, name)
 
 int main(int argc, char** argv) {
-    (void)argc;
-    (void)argv;
+    if (argc >= 2 && std::strcmp(argv[1], "--version") == 0) {
+#ifdef GOEMON_JAPAN_NATIVE
+        printf("Goemon 64: Recompiled JP v%s (%s%s)\n",
+               version_string.c_str(), GOEMON_JP_BUILD_COMMIT,
+               GOEMON_JP_BUILD_DIRTY ? "-dirty" : "");
+#else
+        printf("Goemon 64: Recompiled v%s\n", version_string.c_str());
+#endif
+        return EXIT_SUCCESS;
+    }
     recomp::Version project_version{};
     if (!recomp::Version::from_string(version_string, project_version)) {
         ultramodern::error_handling::message_box(("Invalid version string: " + version_string).c_str());

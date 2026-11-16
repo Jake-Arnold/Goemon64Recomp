@@ -6,6 +6,9 @@
 #include "RmlUi/Core.h"
 #include "nfd.h"
 #include <filesystem>
+#ifdef GOEMON_JAPAN_NATIVE
+#include "goemon_japan_build_id.h"
+#endif
 
 static std::string version_string;
 
@@ -124,6 +127,10 @@ public:
         constructor.Bind("mm_rom_valid", &mm_rom_valid);
 
         version_string = recomp::get_project_version().to_string();
+#ifdef GOEMON_JAPAN_NATIVE
+        version_string += " (" + std::string(GOEMON_JP_BUILD_COMMIT) +
+            (GOEMON_JP_BUILD_DIRTY ? "-dirty" : "") + ")";
+#endif
         constructor.Bind("version_number", &version_string);
 
         model_handle = constructor.GetModelHandle();
