@@ -141,6 +141,31 @@ def instrument_messages(original: str) -> str:
         "    if (!do_send(PASS_RDRAM to_send.mq, to_send.mesg, to_send.jam, false)",
         "bounded external wait with cooperative checkpoint",
     )
+    # The timed external dequeue is also a guest-yield boundary.
+    # Recheck cancellation after waiting, regardless of whether a message
+    # arrived. Never access an old OSMesgQueue after a shutdown request.
+    src = once(
+        src,
+        "    if (external_messages.wait_dequeue_timed(to_send, std::chrono::milliseconds{millis})) {\n",
+        "    if (external_messages.wait_dequeue_timed(to_send, std::chrono::milliseconds{millis})) {\n"
+        "        ultramodern::guest_shutdown_checkpoint();\n",
+        "timed external dequeue success checkpoint",
+    )
+    src = once(
+        src,
+        "            external_messages.enqueue(to_send);\n"
+        "        }\n"
+        "    }\n"
+        "}\n\n"
+        "extern \"C\" void osCreateMesgQueue(",
+        "            external_messages.enqueue(to_send);\n"
+        "        }\n"
+        "    }\n"
+        "    ultramodern::guest_shutdown_checkpoint();\n"
+        "}\n\n"
+        "extern \"C\" void osCreateMesgQueue(",
+        "timed external dequeue timeout checkpoint",
+    )
     src = once(
         src,
         '            ultramodern::thread_queue_insert(PASS_RDRAM GET_MEMBER(OSMesgQueue, mq_, blocked_on_send), ultramodern::this_thread());\n'
