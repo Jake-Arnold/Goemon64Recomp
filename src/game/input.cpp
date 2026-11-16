@@ -23,6 +23,9 @@ namespace ultramodern { void report_guest_message_queue_waits(); }
 #ifdef GOEMON_JP_JOIN_STAGE5_ACTIVE
 namespace ultramodern { void report_guest_join_barrier_readiness(); }
 #endif
+#ifdef GOEMON_JP_EVENTS_STAGE6_ACTIVE
+namespace ultramodern { void jp_report_native_event_worker_blockers(); }
+#endif
 
 constexpr float axis_threshold = 0.5f;
 
@@ -565,6 +568,10 @@ void recomp::poll_inputs() {
 #ifdef GOEMON_JP_JOIN_STAGE5_ACTIVE
         // A readiness report only. No guest stop request or thread join from F8.
         ultramodern::report_guest_join_barrier_readiness();
+#endif
+#ifdef GOEMON_JP_EVENTS_STAGE6_ACTIVE
+        // Audit native host workers; never interrupt live VI/GFX/RSP from F8.
+        ultramodern::jp_report_native_event_worker_blockers();
 #endif
     }
     reset_was_held = reset_held;
