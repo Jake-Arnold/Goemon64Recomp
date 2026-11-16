@@ -5,7 +5,7 @@ from unittest import TestCase
 from unittest.mock import patch
 
 try:
-    from . import prepare_japan_recomp, jp_loader_hook, relocate_task_callbacks
+    from . import prepare_japan_recomp, jp_loader_hook, relocate_task_callbacks, jp_data_fixups
 except ImportError:
     import prepare_japan_recomp
     import jp_loader_hook
@@ -28,24 +28,31 @@ class TestNativeHookPreparation(TestCase):
         with (
             patch.object(jp_loader_hook, "check_rom") as loader_check,
             patch.object(relocate_task_callbacks, "validate_rom") as callback_check,
+            patch.object(jp_data_fixups, "validate_rom") as data_check,
             patch.object(jp_loader_hook, "inject", side_effect=lambda s: s + "loader-hook\n"),
             patch.object(relocate_task_callbacks, "inject", side_effect=lambda s: s + "callback-hook\n"),
+            patch.object(jp_data_fixups, "inject", side_effect=lambda s: s + "data-fixups\n"),
         ):
             result = prepare_japan_recomp.apply_verified_native_hooks(
                 self.generated, self.rom
             )
         loader_check.assert_called_once()
         callback_check.assert_called_once()
+        data_check.assert_called_once()
         self.assertIn("loader-hook", (self.generated / "funcs_0.c").read_text())
         self.assertIn("callback-hook", (self.generated / "funcs_8.c").read_text())
+        self.assertIn("data-fixups", (self.generated / "funcs_8.c").read_text())
+        self.assertEqual(result["native_overlay_56_data_fixups"], 15)
         self.assertEqual(len(result["patched_generated_c_units"]), 2)
 
     def test_second_patch_refusal_preserves_first_source(self):
         with (
             patch.object(jp_loader_hook, "check_rom"),
             patch.object(relocate_task_callbacks, "validate_rom"),
+            patch.object(jp_data_fixups, "validate_rom"),
             patch.object(jp_loader_hook, "inject", side_effect=lambda s: s + "loader-hook\n"),
             patch.object(relocate_task_callbacks, "inject", side_effect=ValueError("incompatible code")),
+            patch.object(jp_data_fixups, "inject") as data_inject,
         ):
             with self.assertRaisesRegex(ValueError, "incompatible"):
                 prepare_japan_recomp.apply_verified_native_hooks(
@@ -58,6 +65,7 @@ class TestNativeHookPreparation(TestCase):
         with (
             patch.object(jp_loader_hook, "check_rom", side_effect=ValueError("wrong ROM")),
             patch.object(relocate_task_callbacks, "validate_rom") as callback_check,
+            patch.object(jp_data_fixups, "validate_rom") as data_check,
         ):
             with self.assertRaisesRegex(ValueError, "wrong ROM"):
                 prepare_japan_recomp.apply_verified_native_hooks(self.generated, self.rom)
