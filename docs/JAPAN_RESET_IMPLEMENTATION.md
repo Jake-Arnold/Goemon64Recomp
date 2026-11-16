@@ -149,5 +149,9 @@ v0.2.5-dev adds the opt-in, joinable timer lifecycle prerequisite; see
 v0.2.6-dev adds an opt-in guest OSThread lifecycle audit. See
 `docs/JAPAN_RESET_GUEST_THREADS_STAGE2.md`. It counts created, finished
 and joined host workers on each F8 request without stopping them.
-This does not enable reset. A future v0.2.7-dev stage must establish
-safe cooperative guest-worker quiescence and joining.
+This does not enable reset. v0.2.7-dev adds an opt-in guest-context
+registry, stop-request scaffolding and cooperative scheduler checkpoints,
+without arming a shutdown in gameplay. See `docs/JAPAN_RESET_GUEST_STAGE3.md`.
+It is not a complete quiescence/join barrier: native main-thread, RSP/VI,
+message queues and the thread cleaner still require coordination. The
+next development version is v0.2.8-dev.
