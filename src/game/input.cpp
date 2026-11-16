@@ -584,6 +584,10 @@ void recomp::poll_inputs() {
         // Audit native host workers; never interrupt live VI/GFX/RSP from F8.
         ultramodern::jp_report_native_event_worker_blockers();
 #endif
+#ifdef GOEMON_JP_GRAPHICS_STAGE8_ACTIVE
+        // Snapshot only: no queue consumption, renderer interruption or reset.
+        ultramodern::jp_report_graphics_queue_settlement();
+#endif
 #ifdef GOEMON_JP_BOOT_STAGE7_ACTIVE
         // Read-only audit: never request shutdown, save flush or audio pause.
         recomp::jp_report_native_boot_lifecycle();
