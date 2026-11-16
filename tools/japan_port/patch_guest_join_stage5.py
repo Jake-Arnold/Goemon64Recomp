@@ -79,6 +79,8 @@ bool ultramodern::wait_for_guest_joins_for_future_reset(uint32_t timeout_ms) {
                 jp_guest_creations_in_flight.load(std::memory_order_acquire) == 0 &&
                 jp_guest_contexts.empty() &&
                 jp_guest_threads_created.load(std::memory_order_acquire) ==
+                    jp_guest_threads_finished.load(std::memory_order_acquire) &&
+                jp_guest_threads_finished.load(std::memory_order_acquire) ==
                     jp_guest_threads_joined.load(std::memory_order_acquire);
         });
 }
@@ -103,6 +105,14 @@ void ultramodern::report_guest_join_barrier_readiness() {
 """
     src = once(src, anchor, api + anchor, "guarded join-only API")
     # Strictly stop new guest scheduling after any future stop request.
+    src = once(
+        src,
+        'extern "C" void osCreateThread(RDRAM_ARG PTR(OSThread) t_, OSId id, PTR(thread_func_t) entrypoint, PTR(void) arg, PTR(void) sp, OSPri pri) {\n',
+        'extern "C" void osCreateThread(RDRAM_ARG PTR(OSThread) t_, OSId id, PTR(thread_func_t) entrypoint, PTR(void) arg, PTR(void) sp, OSPri pri) {\n'
+        '    if (ultramodern::guest_shutdown_requested_for_future_reset())\n'
+        '        throw ultramodern::thread_terminated{};\n',
+        "prevent new guest creation from touching RDRAM after stop",
+    )
     src = once(
         src,
         'extern "C" void osStartThread(RDRAM_ARG PTR(OSThread) t_) {\n',
