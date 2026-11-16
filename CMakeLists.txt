@@ -499,6 +499,9 @@ if(GOEMON_BUILD_JAPAN)
     if(GOEMON_JP_THREAD_STAGE2)
         if(GOEMON_JP_GUEST_STAGE3)
             set(JP_THREAD_SCRIPT "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_guest_quiescence_stage3.py")
+            # The stage-3 generator imports stage-2 instrumentation.
+            set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+                "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_guest_threads_runtime.py")
         else()
             set(JP_THREAD_SCRIPT "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_guest_threads_runtime.py")
         endif()
