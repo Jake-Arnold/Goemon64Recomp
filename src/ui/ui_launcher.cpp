@@ -160,6 +160,11 @@ public:
 #else
         version_string += " [native-events-off]";
 #endif
+#ifdef GOEMON_JP_BOOT_STAGE7_ACTIVE
+        version_string += " [boot-save-audio-audit]";
+#else
+        version_string += " [boot-save-audio-off]";
+#endif
 #endif
         constructor.Bind("version_number", &version_string);
 
