@@ -7,6 +7,11 @@
 #include <numeric>
 #include <stdexcept>
 #include <cinttypes>
+#include <cstdlib>
+#include <cstring>
+#if defined(__linux__)
+#include <unistd.h>
+#endif
 
 #include "nfd.h"
 
@@ -56,7 +61,7 @@
 
 #include "../../lib/rt64/src/contrib/stb/stb_image.h"
 
-const std::string version_string = "0.2.0-dev";
+const std::string version_string = "0.2.1-dev";
 
 template<typename... Ts>
 void exit_error(const char* str, Ts ...args) {
@@ -683,6 +688,22 @@ int main(int argc, char** argv) {
     recomputil::init_extended_actor_data();
     goemon64::load_config();
 
+#if defined(__linux__)
+    // A reset uses execv to create fresh RDRAM and runtime threads. Start the
+    // previously selected ROM automatically, rather than returning to launcher.
+    const char* restart_flag = std::getenv("GOEMON_RESTART_AUTOSTART");
+    const bool autostart_after_reset = restart_flag && std::strcmp(restart_flag, "1") == 0;
+    unsetenv("GOEMON_RESTART_AUTOSTART");
+    if (autostart_after_reset) {
+        recomp::check_all_stored_roms();
+        if (recomp::is_rom_valid(supported_games[0].game_id)) {
+            recomp::start_game(supported_games[0].game_id);
+        } else {
+            fprintf(stderr, "[Goemon] Reset: stored ROM unavailable, showing launcher.\n");
+        }
+    }
+#endif
+
     recomp::rsp::callbacks_t rsp_callbacks{
         .get_rsp_microcode = get_rsp_microcode,
     };
@@ -758,6 +779,18 @@ int main(int argc, char** argv) {
 #ifdef _WIN32
     // End high resolution timing period.
     timeEndPeriod(1);
+#endif
+
+#if defined(__linux__)
+    if (recomp::is_game_restart_requested()) {
+        // recomp::start returns only after game, event and saving threads join.
+        goemon64::save_config();
+        setenv("GOEMON_RESTART_AUTOSTART", "1", 1);
+        fflush(nullptr);
+        execv("/proc/self/exe", argv);
+        perror("[Goemon] Failed to restart game");
+        return EXIT_FAILURE;
+    }
 #endif
 
     return EXIT_SUCCESS;
