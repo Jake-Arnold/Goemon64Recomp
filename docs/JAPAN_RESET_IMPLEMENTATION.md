@@ -163,5 +163,9 @@ a future-stop scheduling gate, join notifications, and F8-only readiness
 diagnostics. See `docs/JAPAN_RESET_GUEST_JOIN_STAGE5.md`. The predicate
 cannot be invoked by gameplay; no guest termination, full host-worker
 quiescence, or RDRAM reinitialisation is implemented. The next reset
-milestone must coordinate native boot/event/render/audio/save workers,
-quiesce every guest host thread, and verify a same-PID boot transaction.
+v0.2.11-dev adds read-only host-worker lifetime and busy-state audits
+for VI, RT64 graphics and RSP task native workers. It confirms their
+normal-exit joins but does not implement an in-process graphics pause.
+See `docs/JAPAN_RESET_HOST_STAGE6.md`. The next stage must coordinate
+native boot/event/render/audio/save workers, quiesce every guest host
+thread, and verify a same-PID boot transaction before clearing RDRAM.
