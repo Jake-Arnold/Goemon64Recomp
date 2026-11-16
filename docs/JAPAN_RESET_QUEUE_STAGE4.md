@@ -28,7 +28,7 @@ sources are generated into the existing native CMake build directory.
    guest-thread counts. This is **not proof that every live guest has
    terminated**, and must never be treated as permission to clear RAM.
 5. The Japanese version is incremented from v0.2.8-dev to **v0.2.9-dev**,
-   with its exact Git commit and an additional `[queue-audit]__ label.
+   with its exact Git commit and an additional `[queue-audit]` label.
    The USA source version remains v0.2.3-dev.
 
 Stage 4 requires all three earlier runtime stages enabled, but is OFF
