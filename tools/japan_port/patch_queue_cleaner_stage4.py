@@ -112,7 +112,7 @@ void ultramodern::report_guest_message_queue_waits() {
 def instrument_messages(original: str) -> str:
     src = original
     src = once(src, "#include <thread>\n",
-               "#include <thread>\n#include <atomic>\n#include <chrono>\n#include <cstdio>\n",
+               "#include <thread>\n#include <atomic>\n#include <chrono>\n#include <cstdint>\n#include <cstdio>\n",
                "message audit include")
     src = once(
         src,
