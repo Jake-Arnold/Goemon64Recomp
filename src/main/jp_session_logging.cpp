@@ -199,15 +199,14 @@ fs::path get_directory() {
 bool goemon_jp::logging::start_session(const char* version, const char* git_commit) noexcept {
     try {
         if (g_session) return true;
-        // Desktop launchers may close fd 1 or 2. Fill those standard slots
-        // BEFORE opening the log file: otherwise mkstemps could take fd 1,
-        // which the later dup2 redirect would close and corrupt logging.
-        // Graphical launchers are allowed to close stdout/stderr entirely.
-        // Ensure pipe() cannot allocate FD 1/2 as its read end, which would
-        // be invalidated when dup2 redirects the standard descriptors.
-        for (int standard : {STDOUT_FILENO, STDERR_FILENO}) {
+        // A standalone desktop launcher may have closed fd 0/1/2. Fill
+        // them BEFORE opening a logfile or pipe; otherwise the log file
+        // could occupy stdout and be overwritten by a later dup2 redirect.
+        for (int standard : {STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO}) {
             if (::fcntl(standard, F_GETFD) < 0 && errno == EBADF) {
-                const int nullfd = ::open("/dev/null", O_WRONLY | O_CLOEXEC);
+                const int flags = (standard == STDIN_FILENO ? O_RDONLY : O_WRONLY)
+                    | O_CLOEXEC;
+                const int nullfd = ::open("/dev/null", flags);
                 if (nullfd >= 0 && nullfd != standard) {
                     ::dup2(nullfd, standard);
                     ::close(nullfd);
