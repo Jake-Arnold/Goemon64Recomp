@@ -22,6 +22,7 @@
 
 #include <fcntl.h>
 #include <poll.h>
+#include <pthread.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -46,7 +47,6 @@ struct Session {
 Session* g_session = nullptr;
 // Signal handler uses only these pre-initialized descriptors and write().
 volatile sig_atomic_t g_signal_log_fd = -1;
-volatile sig_atomic_t g_signal_console_fd = -1;
 
 void write_fully(int fd, const char* data, std::size_t size) noexcept {
     if (fd < 0) return;
@@ -105,9 +105,9 @@ void fatal_signal(int sig, siginfo_t* info, void* context) noexcept {
     (void)context;
 #endif
     add_text(line, sizeof(line), used, " (see core dump for stack trace)\n");
+    // Never write to a potentially disconnected terminal from a crash
+    // handler: SIGPIPE or a blocked console could hide the real crash.
     write_fully(static_cast<int>(g_signal_log_fd), line, used);
-    const int console = static_cast<int>(g_signal_console_fd);
-    if (console >= 0) write_fully(console, line, used);
 
     // Keep normal Linux core-dump and debugger behavior instead of silently
     // converting a SIGSEGV into a success or a catchable C++ exception.
@@ -156,7 +156,6 @@ void stop_session() noexcept {
     s->exit_requested.store(true, std::memory_order_release);
     if (s->reader.joinable()) s->reader.join();
     g_signal_log_fd = -1;
-    g_signal_console_fd = -1;
     if (s->saved_stdout >= 0) ::close(s->saved_stdout);
     if (s->saved_stderr >= 0) ::close(s->saved_stderr);
     ::close(s->file);
@@ -239,6 +238,12 @@ bool goemon_jp::logging::start_session(const char* version, const char* git_comm
         // Fail before touching process descriptors if thread creation fails.
         try {
             s->reader = std::thread([s]() noexcept {
+                // Tee output to the original terminal if available, but
+                // never let a terminal/pipe disconnection SIGPIPE the game.
+                sigset_t blocked;
+                sigemptyset(&blocked);
+                sigaddset(&blocked, SIGPIPE);
+                pthread_sigmask(SIG_BLOCK, &blocked, nullptr);
                 char buffer[8192];
                 const int console = s->saved_stderr >= 0 ?
                     s->saved_stderr : s->saved_stdout;
@@ -288,7 +293,6 @@ bool goemon_jp::logging::start_session(const char* version, const char* git_comm
         setvbuf(stderr, nullptr, _IONBF, 0);
         g_session = s;
         g_signal_log_fd = file;
-        g_signal_console_fd = s->saved_stderr >= 0 ? s->saved_stderr : s->saved_stdout;
         std::atexit(stop_session);
         std::at_quick_exit(stop_session);
         install_fatal_handlers();
