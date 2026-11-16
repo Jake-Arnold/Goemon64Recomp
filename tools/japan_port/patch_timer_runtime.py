@@ -18,6 +18,7 @@ def once(src: str, needle: str, replacement: str, reason: str) -> str:
 
 
 def timer_source(src: str) -> str:
+    src = once(src, "#include <thread>\n", "#include <thread>\n#include <cstdio>\n", "stdio include")
     src = once(src,
         "using Action = std::variant<AddTimerAction, RemoveTimerAction>;",
         "struct ShutdownTimerAction {};\n\n"
