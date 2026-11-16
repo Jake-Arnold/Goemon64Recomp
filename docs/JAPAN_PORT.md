@@ -355,3 +355,32 @@ This strictly verifies the expected 32 MiB Japanese ROM SHA-1, the 72 Japanese s
 
 After obtaining the workflow artifact's Linux `N64Recomp` binary, the same command can add `--n64recomp /path/to/N64Recomp` to execute a native code-generation **probe** and capture its exit status. Neither a generated TOML nor a successful tool invocation proves a playable game: remaining tasks include Japanese data symbols, indirect targets, RSP validation, overlay registration, an isolated Japanese runtime and gameplay tests.
 
+
+
+## First linked native JP frontend, title, and opening-scene validation
+
+On 16 November 2026 the fork was rebuilt in a separate local Linux target, `Goemon64RecompiledJP`, preserving the USA `Goemon64Recompiled` target. Both were compiled and linked successfully against the existing pinned runtime/frontend. The Japanese target uses `mnsg.jp` ROM identity, `Goemon64RecompiledJP` save/config namespace, `launcher-jp.rml`, its own generated JP `recomp_overlays.inl`, and deliberately does not register USA patch binaries.
+
+Real Japanese game startup was tested under SDL/X11 and software Vulkan (Lavapipe) using the user-supplied normalised 16 MiB ROM. The launcher recognised the exact Japanese ROM; a Japanese title scene, Japanese Controller Pak selection menu, input response, a subsequent opening cinematic and original Japanese dialogue rendered and advanced. These are *real native game frames*, not an emulator or static illustration.
+
+### Essential Japan-specific fixes
+
+**Executable overlay registration.** Without the USA-only required patch, the Japanese loader `func_80001BA0_27A0` loaded code into RAM but did not register its active section with N64ModernRuntime. The call to `0x801D0B90` therefore aborted. A ROM-SHA1-gated source-only transformation, `tools/japan_port/jp_loader_hook.py`, injects the native `load_overlays` bridge into privately generated `funcs_0.c`. It uses the region-verified Japanese ROM file table at VRAM `0x80057658`, properly sign-extended as an N64Recomp GPR. The loader patch was tested through real native game startup; the initial unknown-function abort is gone.
+
+**Audio signedness correction.** The native game then threw `std::bad_alloc` through `osAiSetNextBuffer_recomp` because the Japanese audio scheduler used the same unsigned clamp error already fixed in USA. The Japanese ROM instruction `0x00E3082B` at `0x80037F00` is replaced by `0x00E3082A` (`sltu` to `slt`) in `mnsg.japan.toml`. The pinned N64Recomp independently regenerated the function with `SIGNED(ctx->r7) < SIGNED(ctx->r3)` and completed with exit code 0. A local rebuilt binary then rendered the actual Japanese title and opening scenes without the allocation failure.
+
+Reproduce the private native loader hook **after** generating Japanese C and before compiling it:
+
+```bash
+python3 tools/japan_port/jp_loader_hook.py \
+  --rom /private/japan/baserom.decompressed.z64 \
+  --source /private/japan/RecompiledFuncsJP/funcs_0.c \
+  --output /private/japan/RecompiledFuncsJP/funcs_0.c \
+  --in-place
+```
+
+Do not commit `funcs_0.c` or any other generated game code. The script refuses incorrect ROM revisions, missing loader functions, and repeated application.
+
+### Remaining playability blocker
+
+The native executable currently proceeds through introductory scenes, but a subsequent gameplay transition can fail at unresolved TLB-addressed function pointer `0x08000C18`. The USA version's `patches/required.c` includes region-specific corrections for functions involving TLB overlay tasks (`func_8001481C_1541C` and `func_8001198C_1258C`); their Japanese equivalents and relocation offsets need to be adapted and tested, without reusing the USA addresses. Free movement, scene transitions, combat and saving have **not** been fully verified. The Japanese port is **bootable and interactive but not yet confirmed fully playable**.
