@@ -413,3 +413,25 @@ python3 tools/japan_port/prepare_japan_recomp.py \
 The workflow prepares and validates both injections before modifying any generated C: `jp_loader_hook.py` for `funcs_0.c` and `relocate_task_callbacks.py` for `funcs_8.c`. The generated output stays in ignored `build-generated/`; no ROM, extracted C or generated game executable is added to the Git repository.
 
 **Remaining playability gates:** verify unassisted movement, menus, scenes, combat, controls, audio and saves across extended play; investigate any remaining TLB-dependent memory accesses or callbacks; build a reliable Linux package with only runtime dependencies and user-provided ROM import. A bootable and interactive Japanese PC build exists, but **full playability is not yet established**.
+
+## Gameplay regression: actor geometry corruption and native segfault (16 November 2026)
+
+A tester advanced into outdoor gameplay and encountered broken actor geometry (disconnected body parts and an unexpected yellow triangle), followed by a Linux `Segmentation fault (core dumped)`. The last printed callback relocation was Japanese task overlay **file 56**, `cb[1]=0x08003198 -> 0x803D9198` at load base `0x803D6000`. That offset is inside file 56's original ROM span `0x7174A0–0x71B3C0` (size `0x3F20`) and maps to generated `func_08003198_71A638`; it is **not by itself evidence that callback translation is wrong**.
+
+A separate, concrete relocation gap is now being investigated:
+
+- The Japanese N64Recomp overlay table includes **zero `R_MIPS_32`** entries, while the USA port ships a separate overlay-data relocation table with thousands of `R_MIPS_32` entries. The tables have different scopes and the difference must not be interpreted as a one-to-one count of missed relocations.
+- In Japanese `file_56`, the original Splat metadata places the data segment at ROM `0x71AE90` (overlay offset `0x39F0`). Its original ROM data contains **15** aligned, in-overlay 32-bit pointers in that data segment, including nine pointers at offsets `0x3AB0–0x3AD0` and six at `0x3ECC–0x3EE0`.
+- Generated function `func_080034A0_71A940` uses a relocation-aware address for the pointer table at `0x3AB0`, then loads an **unrelocated pointer value** from the table and dereferences it. The first original value is `0x080039F0`; with file 56 loaded at `0x803D6000`, the corresponding RAM pointer is `0x803D99F0`. Without runtime data-pointer fixup or correct TLB emulation, these are not interchangeable.
+- This supplies a plausible causal mechanism for actor corruption or a native address fault, but the exact faulting instruction has **not yet been captured**. Do not mark this as fixed or merge an unverified blanket address rewrite.
+
+To collect native evidence on Ubuntu with the existing preview executable:
+
+```bash
+sudo apt update && sudo apt install gdb
+cd ~/Goemon64Recomp-JP
+git pull --ff-only origin feature/japan-native-recomp
+bash tools/japan_port/capture_native_crash.sh
+```
+
+Play until the crash. The script saves `~/goemon-japan-crash.log` containing the faulting thread, all-thread native backtraces and registers, plus the console trace. Diagnostic output may include full local file paths; review before sharing publicly. The script does not rebuild the game. The next engineering gate is a narrowly scoped Japanese data-section `R_MIPS_32` relocation experiment, validated against the exact decompressed ROM SHA-1 and tested first on file 56, followed by geometry and full-play regression testing.
