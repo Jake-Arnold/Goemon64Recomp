@@ -3,7 +3,7 @@
 # This installs only a desktop entry, the preexisting icon and a wrapper.
 set -euo pipefail
 
-repo_root="$($cd -- "$($dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 binary="${GOEMON_JP_BINARY:-$repo_root/build-generated/japan-native-game/Goemon64RecompiledJP}"
 if [[ ! -x "$binary" && -z "${GOEMON_JP_BINARY:-}" && -x "$repo_root/Goemon64RecompiledJP" ]]; then
     binary="$repo_root/Goemon64RecompiledJP"
