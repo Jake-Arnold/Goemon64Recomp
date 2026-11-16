@@ -132,10 +132,11 @@ Expected: `v0.2.14-dev` and `[graphics-queue-audit]`, plus the exact
 Git commit. Runtime crash testing must happen **only inside the harness**
 above. Do not deliberately crash a gameplay session with an unsaved game.
 
-The eleven-test harness checks normal stdout/stderr capture, preservation
+The thirteen-test harness checks normal stdout/stderr capture, preservation
 of terminal messages, signal markers with standard Linux signal
 termination, quick-exit draining, latest-log symlink, permissions,
-20-session retention, inherited pipe writers and closed-terminal safety. The native gameplay build and desktop launch
+20-session retention, inherited pipe writers, closed-terminal safety,
+closed standard descriptors and the default HOME/XDG path fallback. The native gameplay build and desktop launch
 still need Ubuntu verification.
 
 ## Scope
