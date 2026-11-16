@@ -42,6 +42,12 @@ static struct {
     bool rumble_active;
 } InputState;
 
+static std::atomic_bool game_restart_requested{false};
+
+bool recomp::is_game_restart_requested() {
+    return game_restart_requested.load();
+}
+
 static struct {
     std::list<std::filesystem::path> files_dropped;
 } DropState;
@@ -392,6 +398,9 @@ const recomp::DefaultN64Mappings recomp::default_n64_keyboard_mappings = {
     },
     .apply_menu = {
         {.input_type = (uint32_t)InputType::Keyboard, .input_id = SDL_SCANCODE_F}
+    },
+    .reset_game = {
+        {.input_type = (uint32_t)InputType::Keyboard, .input_id = SDL_SCANCODE_F8}
     }
 };
 
@@ -463,7 +472,8 @@ const recomp::DefaultN64Mappings recomp::default_n64_controller_mappings = {
     .apply_menu = {
         {.input_type = (uint32_t)InputType::ControllerDigital, .input_id = SDL_CONTROLLER_BUTTON_WEST},
         {.input_type = (uint32_t)InputType::ControllerDigital, .input_id = SDL_CONTROLLER_BUTTON_START}
-    }
+    },
+    .reset_game = {}
 };
 
 void recomp::poll_inputs() {
@@ -511,6 +521,31 @@ void recomp::poll_inputs() {
         save_was_held = save_is_held;
     }
     #endif
+
+#if defined(__linux__)
+    // Restart after the runtime joins its game and saving threads. Detect
+    // changes even while the settings menu is open, preventing stale presses.
+    bool reset_held = false;
+    for (size_t slot = 0; slot < recomp::bindings_per_input; ++slot) {
+        reset_held |= recomp::get_input_digital(
+            recomp::get_input_binding(recomp::GameInput::RESET_GAME, slot, recomp::InputDevice::Keyboard));
+        reset_held |= recomp::get_input_digital(
+            recomp::get_input_binding(recomp::GameInput::RESET_GAME, slot, recomp::InputDevice::Controller));
+    }
+    static bool reset_was_held = true;  // Require a release after launch.
+    static bool reset_armed = false;
+    if (!reset_held) {
+        reset_armed = true;
+    }
+    const bool reset_pressed = reset_held && !reset_was_held;
+    reset_was_held = reset_held;
+    if (reset_pressed && reset_armed && ultramodern::is_game_started() &&
+        !recomp::game_input_disabled() && !recomp::all_input_disabled() &&
+        !game_restart_requested.exchange(true)) {
+        fprintf(stderr, "[Goemon] Reset hotkey pressed; restarting after runtime shutdown.\n");
+        ultramodern::quit();
+    }
+#endif
 }
 
 void recomp::set_rumble(int controller_num, bool on) {
