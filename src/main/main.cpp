@@ -56,7 +56,7 @@
 
 #include "../../lib/rt64/src/contrib/stb/stb_image.h"
 
-const std::string version_string = "0.2.0-dev";
+const std::string version_string = "0.2.2-dev";
 
 template<typename... Ts>
 void exit_error(const char* str, Ts ...args) {
@@ -74,6 +74,12 @@ ultramodern::gfx_callbacks_t::gfx_data_t create_gfx() {
     SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_PS5_RUMBLE, "1");
     SDL_SetHint(SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH, "1");
     SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
+#if defined(__linux__) && defined(GOEMON_JAPAN_NATIVE)
+    // Use a stable desktop identity so GNOME can associate direct launches
+    // of the Japanese executable with its installed application icon.
+    SDL_setenv("SDL_VIDEO_X11_WMCLASS", "Goemon64RecompiledJP", 0);
+    SDL_setenv("SDL_VIDEO_WAYLAND_WMCLASS", "Goemon64RecompiledJP", 0);
+#endif
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_JOYSTICK) > 0) {
         exit_error("Failed to initialize SDL2: %s\n", SDL_GetError());
