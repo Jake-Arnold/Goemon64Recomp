@@ -62,11 +62,13 @@ static std::atomic<uint64_t> jp_guest_creations_in_flight{0};
 void ultramodern::report_guest_shutdown_readiness() {
     std::lock_guard<std::mutex> lock(jp_guest_context_mutex);
     std::fprintf(stderr,
-        "[Goemon JP guest stop] tracked=%zu spawning=%llu stop=not-armed; "
+        "[Goemon JP guest stop] tracked=%zu spawning=%llu stop=%s; "
         "guest stop and memory reset disabled.\\n",
         jp_guest_contexts.size(),
         static_cast<unsigned long long>(
-            jp_guest_creations_in_flight.load(std::memory_order_relaxed)));
+            jp_guest_creations_in_flight.load(std::memory_order_relaxed)),
+        jp_guest_stop_requested.load(std::memory_order_acquire)
+            ? "requested" : "not-armed");
 }
 
 // NOT EXPOSED IN THE GAME UI. This primitive is incomplete until the
