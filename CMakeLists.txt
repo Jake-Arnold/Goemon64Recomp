@@ -424,3 +424,55 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
         "${CMAKE_SOURCE_DIR}/compile_commands.json"
     )
 endif()
+# Experimental Japanese native executable. An opt-in separate target ensures
+# the original USA CMake target and its patches remain unchanged.
+option(GOEMON_BUILD_JAPAN "Build isolated Japanese Goemon PC executable" OFF)
+set(GOEMON_JAPAN_GENERATED "" CACHE PATH "Private JP N64Recomp output; never commit")
+set(GOEMON_JAPAN_STATIC_LIB "" CACHE FILEPATH "Private JP recompiled archive; never commit")
+if(GOEMON_BUILD_JAPAN)
+    if(NOT EXISTS "${GOEMON_JAPAN_GENERATED}/recomp_overlays.inl"
+       OR NOT EXISTS "${GOEMON_JAPAN_GENERATED}/funcs.h")
+        message(FATAL_ERROR "Japanese generated overlay metadata is required")
+    endif()
+    if(NOT EXISTS "${GOEMON_JAPAN_STATIC_LIB}")
+        message(FATAL_ERROR "Japanese native recompilation archive is required")
+    endif()
+    # Reuse the existing frontend sources and shared shader/icon build rules.
+    get_target_property(JP_SOURCES Goemon64Recompiled SOURCES)
+    list(REMOVE_ITEM JP_SOURCES
+        "${CMAKE_SOURCE_DIR}/src/main/register_overlays.cpp"
+        "${CMAKE_SOURCE_DIR}/src/main/register_patches.cpp")
+    list(APPEND JP_SOURCES
+        "${CMAKE_SOURCE_DIR}/src/main/register_overlays_japan.cpp"
+        "${CMAKE_SOURCE_DIR}/src/main/register_patches_japan.cpp")
+    add_executable(Goemon64RecompiledJP ${JP_SOURCES})
+    target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JAPAN_NATIVE)
+    get_target_property(JP_INCLUDES Goemon64Recompiled INCLUDE_DIRECTORIES)
+    get_target_property(JP_COMPILE_OPTS Goemon64Recompiled COMPILE_OPTIONS)
+    get_target_property(JP_LINK_OPTS Goemon64Recompiled LINK_OPTIONS)
+    target_include_directories(Goemon64RecompiledJP PRIVATE
+        ${JP_INCLUDES} "${GOEMON_JAPAN_GENERATED}")
+    if(JP_COMPILE_OPTS)
+        target_compile_options(Goemon64RecompiledJP PRIVATE ${JP_COMPILE_OPTS})
+    endif()
+    if(JP_LINK_OPTS)
+        target_link_options(Goemon64RecompiledJP PRIVATE ${JP_LINK_OPTS})
+    endif()
+    target_link_libraries(Goemon64RecompiledJP PRIVATE
+        "${GOEMON_JAPAN_STATIC_LIB}"
+        librecomp ultramodern rt64
+        RmlUi::Core RmlUi::Debugger nfd lunasvg)
+    if(CMAKE_SYSTEM_NAME MATCHES "Linux")
+        target_link_libraries(Goemon64RecompiledJP PRIVATE
+            "-latomic -static-libstdc++" ${CMAKE_DL_LIBS} Threads::Threads
+            ${FREETYPE_LIBRARIES} SDL2::SDL2)
+    elseif(APPLE)
+        target_link_libraries(Goemon64RecompiledJP PRIVATE
+            ${CMAKE_DL_LIBS} Threads::Threads SDL2::SDL2)
+    elseif(WIN32)
+        target_link_libraries(Goemon64RecompiledJP PRIVATE SDL2 Winmm.lib)
+    endif()
+    add_dependencies(Goemon64RecompiledJP Goemon64Recompiled)
+    set_property(TARGET Goemon64RecompiledJP PROPERTY
+        VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+endif()

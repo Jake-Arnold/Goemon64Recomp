@@ -38,7 +38,11 @@ void select_rom() {
                     break;
                 case recomp::RomValidationError::IncorrectVersion:
                     recompui::message_box(
+                            #ifdef GOEMON_JAPAN_NATIVE
+                            "This ROM is the correct game, but the wrong version.\nThe Japanese executable requires the Japanese NTSC-J revision.");
+#else
                             "This ROM is the correct game, but the wrong version.\nThis project requires the NTSC-U N64 version of the game.");
+#endif
                     break;
                 case recomp::RomValidationError::OtherError:
                     recompui::message_box("An unknown error has occurred.");
@@ -63,7 +67,11 @@ public:
 
     }
     void load_document() override {
-		launcher_context = recompui::create_context(goemon64::get_asset_path("launcher.rml"));
+		#ifdef GOEMON_JAPAN_NATIVE
+        launcher_context = recompui::create_context(goemon64::get_asset_path("launcher-jp.rml"));
+#else
+        launcher_context = recompui::create_context(goemon64::get_asset_path("launcher.rml"));
+#endif
     }
     void register_events(recompui::UiEventListenerInstancer& listener) override {
         recompui::register_event(listener, "select_rom",

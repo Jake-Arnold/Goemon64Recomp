@@ -7,7 +7,11 @@
 #include "recomp_input.h"
 
 namespace goemon64 {
+#ifdef GOEMON_JAPAN_NATIVE
+    constexpr std::u8string_view program_id = u8"Goemon64RecompiledJP";
+#else
     constexpr std::u8string_view program_id = u8"Goemon64Recompiled";
+#endif
     constexpr std::string_view program_name = "Goemon 64: Recompiled";
 
     // TODO: Move loading configs to the runtime once we have a way to allow per-project customization.

@@ -349,6 +349,24 @@ RspUcodeFunc* get_rsp_microcode(const OSTask* task) {
 extern "C" void recomp_entrypoint(uint8_t * rdram, recomp_context * ctx);
 gpr get_entrypoint_address();
 
+// Each executable owns one region-specific GameEntry. Never dispatch JP code
+// through USA overlay tables, patch definitions or save configuration.
+#ifdef GOEMON_JAPAN_NATIVE
+std::vector<recomp::GameEntry> supported_games = {
+    {
+        .rom_hash = 0xD526A3DB80EB7924ULL,
+        .internal_name = "\xB6\xDE\xDD\xCA\xDE\xDA \xBA\xDE\xB4\xD3\xDD",
+        .game_id = u8"mnsg.jp",
+        .mod_game_id = "mnsg.jp",
+        .save_type = recomp::SaveType::AllowAll,
+        .is_enabled = true,
+        .decompression_routine = goemon64::decompress_mnsg_japan,
+        .has_compressed_code = true,
+        .entrypoint_address = get_entrypoint_address(),
+        .entrypoint = recomp_entrypoint,
+    }
+};
+#else
 // array of supported GameEntry objects
 std::vector<recomp::GameEntry> supported_games = {
 	{
@@ -364,6 +382,7 @@ std::vector<recomp::GameEntry> supported_games = {
         .entrypoint = recomp_entrypoint,
 	}
 };
+#endif // GOEMON_JAPAN_NATIVE
 
 // TODO: move somewhere else
 namespace goemon64 {
