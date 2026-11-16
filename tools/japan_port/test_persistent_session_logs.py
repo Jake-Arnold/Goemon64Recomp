@@ -24,11 +24,15 @@ HARNESS = r"""
 #include <csignal>
 #include <cstring>
 #include <unistd.h>
+#include <thread>
+#include <chrono>
 
 int main(int argc, char** argv) {
     const char* mode = argc > 1 ? argv[1] : "normal";
     if (std::strcmp(mode, "noinit") == 0) return 0;
     if (!goemon_jp::logging::start_session("vtest", "test-git-sha")) return 70;
+    if (std::strcmp(mode, "brokenconsole") == 0)
+        std::this_thread::sleep_for(std::chrono::milliseconds(250));
     std::fprintf(stdout, "[test-stdout] a normal game message\n");
     std::fprintf(stderr, "[test-stderr] a runtime error diagnostic\n");
     if (std::strcmp(mode, "segv") == 0) { std::fflush(nullptr); raise(SIGSEGV); }
@@ -137,6 +141,21 @@ class PersistentLogTests(unittest.TestCase):
         elapsed = time.monotonic() - started
         self.assertEqual(p.returncode, 0, p.stderr)
         self.assertLess(elapsed, 1.5, "logger must not wait for inherited write descriptors")
+        self.assertIn("[test-stderr]", (self.logdir / "latest.log").read_text())
+
+    def test_disconnected_terminal_does_not_kill_game(self):
+        env = os.environ.copy()
+        env["XDG_STATE_HOME"] = str(self.home / "xdg-state")
+        env["HOME"] = str(self.home)
+        p = subprocess.Popen(
+            [str(self.binary), "brokenconsole"], env=env,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            preexec_fn=lambda: resource.setrlimit(resource.RLIMIT_CORE, (0, 0)),
+        )
+        assert p.stdout is not None and p.stderr is not None
+        p.stdout.close()
+        p.stderr.close()
+        self.assertEqual(p.wait(timeout=5), 0)
         self.assertIn("[test-stderr]", (self.logdir / "latest.log").read_text())
 
     def test_noinit_creates_no_log(self):
