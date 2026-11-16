@@ -491,6 +491,10 @@ if(GOEMON_BUILD_JAPAN)
     option(GOEMON_JP_THREAD_STAGE2 "Enable Japanese guest thread reset audit" OFF)
     option(GOEMON_JP_GUEST_STAGE3 "Enable JP guest cooperative stop primitives (disabled in UI)" OFF)
     option(GOEMON_JP_QUEUE_STAGE4 "Enable JP queue and cleaner lifecycle diagnostics" OFF)
+    option(GOEMON_JP_JOIN_STAGE5 "Enable inactive guarded guest join barrier and scheduler stop gates" OFF)
+    if(GOEMON_JP_JOIN_STAGE5 AND NOT GOEMON_JP_QUEUE_STAGE4)
+        message(FATAL_ERROR "GOEMON_JP_JOIN_STAGE5 requires GOEMON_JP_QUEUE_STAGE4=ON")
+    endif()
     if(GOEMON_JP_QUEUE_STAGE4 AND NOT GOEMON_JP_GUEST_STAGE3)
         message(FATAL_ERROR "GOEMON_JP_QUEUE_STAGE4 requires GOEMON_JP_GUEST_STAGE3=ON")
     endif()
@@ -501,7 +505,13 @@ if(GOEMON_BUILD_JAPAN)
         message(FATAL_ERROR "GOEMON_JP_THREAD_STAGE2 requires GOEMON_JP_TIMER_STAGE1=ON")
     endif()
     if(GOEMON_JP_THREAD_STAGE2)
-        if(GOEMON_JP_QUEUE_STAGE4)
+        if(GOEMON_JP_JOIN_STAGE5)
+            set(JP_THREAD_SCRIPT "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_guest_join_stage5.py")
+            set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+                "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_queue_cleaner_stage4.py"
+                "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_guest_quiescence_stage3.py"
+                "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_guest_threads_runtime.py")
+        elseif(GOEMON_JP_QUEUE_STAGE4)
             set(JP_THREAD_SCRIPT "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_queue_cleaner_stage4.py")
             set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
                 "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_guest_quiescence_stage3.py"
@@ -552,6 +562,19 @@ if(GOEMON_BUILD_JAPAN)
                 "${JP_TIMER_RUNTIME_ROOT}/ultramodern/src/mesgqueue.cpp")
             set_property(TARGET ultramodern PROPERTY SOURCES ${JP_MESG_ORIGINAL_SOURCES})
             target_sources(ultramodern PRIVATE "${JP_TIMER_GENERATED_DIR}/mesgqueue.cpp")
+            if(GOEMON_JP_JOIN_STAGE5)
+                get_target_property(JP_SCHED_ORIGINAL_SOURCES ultramodern SOURCES)
+                list(FIND JP_SCHED_ORIGINAL_SOURCES
+                    "${JP_TIMER_RUNTIME_ROOT}/ultramodern/src/scheduling.cpp"
+                    JP_SCHED_SOURCE_INDEX)
+                if(JP_SCHED_SOURCE_INDEX EQUAL -1)
+                    message(FATAL_ERROR "Original scheduling.cpp not found in ultramodern target")
+                endif()
+                list(REMOVE_ITEM JP_SCHED_ORIGINAL_SOURCES
+                    "${JP_TIMER_RUNTIME_ROOT}/ultramodern/src/scheduling.cpp")
+                set_property(TARGET ultramodern PROPERTY SOURCES ${JP_SCHED_ORIGINAL_SOURCES})
+                target_sources(ultramodern PRIVATE "${JP_TIMER_GENERATED_DIR}/scheduling.cpp")
+            endif()
         endif()
     endif()
     # Reuse the existing frontend sources and shared shader/icon build rules.
@@ -575,6 +598,9 @@ if(GOEMON_BUILD_JAPAN)
     endif()
     if(GOEMON_JP_QUEUE_STAGE4)
         target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JP_QUEUE_STAGE4_ACTIVE)
+    endif()
+    if(GOEMON_JP_JOIN_STAGE5)
+        target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JP_JOIN_STAGE5_ACTIVE)
     endif()
     # Regenerate the build-commit identifier on every JP build. The script
     # writes only when content changes; incremental compilation stays fast.
