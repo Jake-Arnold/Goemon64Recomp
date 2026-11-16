@@ -486,6 +486,41 @@ if(GOEMON_BUILD_JAPAN)
         set_property(TARGET librecomp PROPERTY SOURCES ${JP_TIMER_RECOMP_SOURCES})
         target_sources(librecomp PRIVATE "${JP_TIMER_GENERATED_DIR}/recomp.cpp")
     endif()
+    # Experimental JP reset stage 2: count guest OSThread host lifecycles.
+    # No guest worker is stopped and no guest memory is reset at this stage.
+    option(GOEMON_JP_THREAD_STAGE2 "Enable Japanese guest thread reset audit" OFF)
+    if(GOEMON_JP_THREAD_STAGE2 AND NOT GOEMON_JP_TIMER_STAGE1)
+        message(FATAL_ERROR "GOEMON_JP_THREAD_STAGE2 requires GOEMON_JP_TIMER_STAGE1=ON")
+    endif()
+    if(GOEMON_JP_THREAD_STAGE2)
+        set(JP_THREAD_SCRIPT "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_guest_threads_runtime.py")
+        set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${JP_THREAD_SCRIPT}")
+        execute_process(
+            COMMAND "${Python3_EXECUTABLE}" "${JP_THREAD_SCRIPT}"
+                --runtime "${JP_TIMER_RUNTIME_ROOT}"
+                --output "${JP_TIMER_GENERATED_DIR}"
+            RESULT_VARIABLE JP_THREAD_PATCH_RESULT
+            OUTPUT_VARIABLE JP_THREAD_PATCH_OUTPUT
+            ERROR_VARIABLE JP_THREAD_PATCH_ERROR)
+        if(NOT JP_THREAD_PATCH_RESULT EQUAL 0)
+            message(FATAL_ERROR
+                "JP guest-thread source audit failed (pinned runtime mismatch?):\n"
+                "${JP_THREAD_PATCH_OUTPUT}\n${JP_THREAD_PATCH_ERROR}")
+        endif()
+        message(STATUS "${JP_THREAD_PATCH_OUTPUT}")
+
+        get_target_property(JP_THREAD_ORIGINAL_SOURCES ultramodern SOURCES)
+        list(FIND JP_THREAD_ORIGINAL_SOURCES
+            "${JP_TIMER_RUNTIME_ROOT}/ultramodern/src/threads.cpp"
+            JP_THREAD_SOURCE_INDEX)
+        if(JP_THREAD_SOURCE_INDEX EQUAL -1)
+            message(FATAL_ERROR "Original threads.cpp not found in ultramodern target")
+        endif()
+        list(REMOVE_ITEM JP_THREAD_ORIGINAL_SOURCES
+            "${JP_TIMER_RUNTIME_ROOT}/ultramodern/src/threads.cpp")
+        set_property(TARGET ultramodern PROPERTY SOURCES ${JP_THREAD_ORIGINAL_SOURCES})
+        target_sources(ultramodern PRIVATE "${JP_TIMER_GENERATED_DIR}/threads.cpp")
+    endif()
     # Reuse the existing frontend sources and shared shader/icon build rules.
     get_target_property(JP_SOURCES Goemon64Recompiled SOURCES)
     list(REMOVE_ITEM JP_SOURCES
@@ -498,6 +533,9 @@ if(GOEMON_BUILD_JAPAN)
     target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JAPAN_NATIVE)
     if(GOEMON_JP_TIMER_STAGE1)
         target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JP_TIMER_STAGE1_ACTIVE)
+    endif()
+    if(GOEMON_JP_THREAD_STAGE2)
+        target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JP_THREAD_STAGE2_ACTIVE)
     endif()
     # Regenerate the build-commit identifier on every JP build. The script
     # writes only when content changes; incremental compilation stays fast.
