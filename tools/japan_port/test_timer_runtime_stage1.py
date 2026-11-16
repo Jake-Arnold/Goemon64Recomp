@@ -73,6 +73,13 @@ class NativeTimerLifecycleTests(unittest.TestCase):
         source = (ROOT / "src/main/main.cpp").read_text()
         self.assertIn('#ifdef GOEMON_JAPAN_NATIVE\nconst std::string version_string = "0.2.5-dev";', source)
         self.assertIn('const std::string version_string = "0.2.3-dev";', source)
+        self.assertIn('jp_timer_build_mode = " [timer-stage1]"', source)
+        self.assertIn('jp_timer_build_mode = " [timer-off]"', source)
+        launcher = (ROOT / "src/ui/ui_launcher.cpp").read_text()
+        self.assertIn('version_string += " [timer-stage1]"', launcher)
+        self.assertIn('version_string += " [timer-off]"', launcher)
+        cmake = (ROOT / "CMakeLists.txt").read_text()
+        self.assertIn('target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JP_TIMER_STAGE1_ACTIVE)', cmake)
 
 
 if __name__ == "__main__":
