@@ -10,6 +10,7 @@ except ImportError:
     import prepare_japan_recomp
     import jp_loader_hook
     import relocate_task_callbacks
+    import jp_data_fixups
 
 
 class TestNativeHookPreparation(TestCase):
@@ -61,6 +62,20 @@ class TestNativeHookPreparation(TestCase):
         self.assertEqual((self.generated / "funcs_0.c").read_text(), "loader-original\n")
         self.assertEqual((self.generated / "funcs_8.c").read_text(), "callback-original\n")
 
+    def test_third_patch_failure_preserves_both_source_files(self):
+        with (
+            patch.object(jp_loader_hook, "check_rom"),
+            patch.object(relocate_task_callbacks, "validate_rom"),
+            patch.object(jp_data_fixups, "validate_rom"),
+            patch.object(jp_loader_hook, "inject", side_effect=lambda s: s + "loader-hook\n"),
+            patch.object(relocate_task_callbacks, "inject", side_effect=lambda s: s + "callback-hook\n"),
+            patch.object(jp_data_fixups, "inject", side_effect=ValueError("bad pointer table")),
+        ):
+            with self.assertRaisesRegex(ValueError, "bad pointer table"):
+                prepare_japan_recomp.apply_verified_native_hooks(self.generated, self.rom)
+        self.assertEqual((self.generated / "funcs_0.c").read_text(), "loader-original\n")
+        self.assertEqual((self.generated / "funcs_8.c").read_text(), "callback-original\n")
+
     def test_rom_gate_fails_before_modifications(self):
         with (
             patch.object(jp_loader_hook, "check_rom", side_effect=ValueError("wrong ROM")),
@@ -70,5 +85,6 @@ class TestNativeHookPreparation(TestCase):
             with self.assertRaisesRegex(ValueError, "wrong ROM"):
                 prepare_japan_recomp.apply_verified_native_hooks(self.generated, self.rom)
         callback_check.assert_not_called()
+        data_check.assert_not_called()
         self.assertEqual((self.generated / "funcs_0.c").read_text(), "loader-original\n")
         self.assertEqual((self.generated / "funcs_8.c").read_text(), "callback-original\n")
