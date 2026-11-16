@@ -140,6 +140,11 @@ public:
 #else
         version_string += " [threads-off]";
 #endif
+#ifdef GOEMON_JP_GUEST_STAGE3_ACTIVE
+        version_string += " [guest-prep]";
+#else
+        version_string += " [guest-prep-off]";
+#endif
 #endif
         constructor.Bind("version_number", &version_string);
 
