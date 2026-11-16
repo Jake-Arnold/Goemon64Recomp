@@ -495,6 +495,10 @@ if(GOEMON_BUILD_JAPAN)
     option(GOEMON_JP_EVENTS_STAGE6 "Enable JP native event worker lifecycle and task census" OFF)
     option(GOEMON_JP_BOOT_STAGE7 "Enable JP native boot, saving and audio lifecycle audit" OFF)
     option(GOEMON_JP_GRAPHICS_STAGE8 "Enable JP graphics action queue settlement audit" OFF)
+    option(GOEMON_JP_EXIT_STAGE9 "Enable bounded guest OSThread shutdown only on PC exit" OFF)
+    if(GOEMON_JP_EXIT_STAGE9 AND NOT GOEMON_JP_GRAPHICS_STAGE8)
+        message(FATAL_ERROR "GOEMON_JP_EXIT_STAGE9 requires GOEMON_JP_GRAPHICS_STAGE8=ON")
+    endif()
     if(GOEMON_JP_GRAPHICS_STAGE8 AND NOT GOEMON_JP_BOOT_STAGE7)
         message(FATAL_ERROR "GOEMON_JP_GRAPHICS_STAGE8 requires GOEMON_JP_BOOT_STAGE7=ON")
     endif()
@@ -517,7 +521,16 @@ if(GOEMON_BUILD_JAPAN)
         message(FATAL_ERROR "GOEMON_JP_THREAD_STAGE2 requires GOEMON_JP_TIMER_STAGE1=ON")
     endif()
     if(GOEMON_JP_THREAD_STAGE2)
-        if(GOEMON_JP_GRAPHICS_STAGE8)
+        if(GOEMON_JP_EXIT_STAGE9)
+            set(JP_THREAD_SCRIPT "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_guest_exit_stage9.py")
+            set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+                "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_graphics_queue_stage8.py"
+                "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_native_events_stage6.py"
+                "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_guest_join_stage5.py"
+                "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_queue_cleaner_stage4.py"
+                "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_guest_quiescence_stage3.py"
+                "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_guest_threads_runtime.py")
+        elseif(GOEMON_JP_GRAPHICS_STAGE8)
             set(JP_THREAD_SCRIPT "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_graphics_queue_stage8.py")
             set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
                 "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_native_events_stage6.py"
@@ -552,8 +565,13 @@ if(GOEMON_BUILD_JAPAN)
             set(JP_THREAD_SCRIPT "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_guest_threads_runtime.py")
         endif()
         set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${JP_THREAD_SCRIPT}")
+        set(JP_THREAD_EXTRA_ARGS "")
+        if(GOEMON_JP_EXIT_STAGE9)
+            list(APPEND JP_THREAD_EXTRA_ARGS --mode guest)
+        endif()
         execute_process(
             COMMAND "${Python3_EXECUTABLE}" "${JP_THREAD_SCRIPT}"
+                ${JP_THREAD_EXTRA_ARGS}
                 --runtime "${JP_TIMER_RUNTIME_ROOT}"
                 --output "${JP_TIMER_GENERATED_DIR}"
             RESULT_VARIABLE JP_THREAD_PATCH_RESULT
@@ -666,6 +684,36 @@ if(GOEMON_BUILD_JAPAN)
         set_property(TARGET ultramodern PROPERTY SOURCES ${JP_STAGE7_AUDIO_SOURCES})
         target_sources(ultramodern PRIVATE "${JP_TIMER_GENERATED_DIR}/audio_stage7.cpp")
     endif()
+    # Stage9 patches the *generated* stage7 recomp source, not the pinned
+    # submodule. This stop request occurs ONLY after a normal PC app exit
+    # and the native boot thread joins; F8 is still diagnostic-only.
+    if(GOEMON_JP_EXIT_STAGE9)
+        set(JP_STAGE9_SCRIPT "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_guest_exit_stage9.py")
+        execute_process(
+            COMMAND "${Python3_EXECUTABLE}" "${JP_STAGE9_SCRIPT}"
+                --mode recomp
+                --source "${JP_TIMER_GENERATED_DIR}/recomp_stage7.cpp"
+                --output "${JP_TIMER_GENERATED_DIR}/recomp_stage9.cpp"
+            RESULT_VARIABLE JP_STAGE9_RESULT
+            OUTPUT_VARIABLE JP_STAGE9_OUTPUT
+            ERROR_VARIABLE JP_STAGE9_ERROR)
+        if(NOT JP_STAGE9_RESULT EQUAL 0)
+            message(FATAL_ERROR
+                "JP guest exit stage9 generation failed:\n"
+                "${JP_STAGE9_OUTPUT}\n${JP_STAGE9_ERROR}")
+        endif()
+        message(STATUS "${JP_STAGE9_OUTPUT}")
+        get_target_property(JP_STAGE9_RECOMP_SOURCES librecomp SOURCES)
+        list(FIND JP_STAGE9_RECOMP_SOURCES
+            "${JP_TIMER_GENERATED_DIR}/recomp_stage7.cpp" JP_STAGE9_OLD_RECOMP)
+        if(JP_STAGE9_OLD_RECOMP EQUAL -1)
+            message(FATAL_ERROR "Stage9 requires generated stage7 recomp source")
+        endif()
+        list(REMOVE_ITEM JP_STAGE9_RECOMP_SOURCES
+            "${JP_TIMER_GENERATED_DIR}/recomp_stage7.cpp")
+        set_property(TARGET librecomp PROPERTY SOURCES ${JP_STAGE9_RECOMP_SOURCES})
+        target_sources(librecomp PRIVATE "${JP_TIMER_GENERATED_DIR}/recomp_stage9.cpp")
+    endif()
     # Reuse the existing frontend sources and shared shader/icon build rules.
     get_target_property(JP_SOURCES Goemon64Recompiled SOURCES)
     list(REMOVE_ITEM JP_SOURCES
@@ -704,6 +752,9 @@ if(GOEMON_BUILD_JAPAN)
     endif()
     if(GOEMON_JP_GRAPHICS_STAGE8)
         target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JP_GRAPHICS_STAGE8_ACTIVE)
+    endif()
+    if(GOEMON_JP_EXIT_STAGE9)
+        target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JP_EXIT_STAGE9_ACTIVE)
     endif()
     # Regenerate the build-commit identifier on every JP build. The script
     # writes only when content changes; incremental compilation stays fast.
