@@ -19,6 +19,12 @@ def once(src: str, needle: str, replacement: str, reason: str) -> str:
 
 def timer_source(src: str) -> str:
     src = once(src, "#include <thread>\n", "#include <thread>\n#include <cstdio>\n", "stdio include")
+    # Namespaced out-of-line definitions require a prior declaration in this TU.
+    src = once(src,
+        '#include "ultramodern/ultramodern.hpp"\n',
+        '#include "ultramodern/ultramodern.hpp"\n\n'
+        'namespace ultramodern { void shutdown_timers(); }\n',
+        "timer namespace declaration")
     src = once(src,
         "using Action = std::variant<AddTimerAction, RemoveTimerAction>;",
         "struct ShutdownTimerAction {};\n\n"
