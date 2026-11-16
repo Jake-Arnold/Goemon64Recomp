@@ -10,6 +10,9 @@
 #include <cstring>
 #ifdef GOEMON_JAPAN_NATIVE
 #include "goemon_japan_build_id.h"
+#if defined(__linux__)
+#include "jp_session_logging.h"
+#endif
 #endif
 
 #include "nfd.h"
@@ -61,7 +64,7 @@
 #include "../../lib/rt64/src/contrib/stb/stb_image.h"
 
 #ifdef GOEMON_JAPAN_NATIVE
-const std::string version_string = "0.2.13-dev";
+const std::string version_string = "0.2.14-dev";
 #ifdef GOEMON_JP_TIMER_STAGE1_ACTIVE
 constexpr const char* jp_timer_build_mode = " [timer-stage1]";
 #else
@@ -657,6 +660,15 @@ int main(int argc, char** argv) {
 #endif
         return EXIT_SUCCESS;
     }
+#if defined(__linux__) && defined(GOEMON_JAPAN_NATIVE)
+    // Capture both standalone desktop and CLI sessions before preload, SDL,
+    // native startup or guest worker creation. --version stays side-effect free.
+    if (!goemon_jp::logging::start_session(version_string.c_str(), GOEMON_JP_BUILD_COMMIT)) {
+        std::fprintf(stderr,
+                     "[Goemon JP session log] WARNING: could not open persistent log; "
+                     "terminal logging continues.\n");
+    }
+#endif
     recomp::Version project_version{};
     if (!recomp::Version::from_string(version_string, project_version)) {
         ultramodern::error_handling::message_box(("Invalid version string: " + version_string).c_str());
