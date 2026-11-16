@@ -184,7 +184,8 @@ class NativeEventStage6Tests(unittest.TestCase):
         self.assertIn('const std::string version_string = "0.2.3-dev"', main)
         self.assertIn('jp_events_build_mode = " [native-events-audit]"', main)
         self.assertIn('version_string += " [native-events-audit]"', ui)
-        self.assertIn("jp_join_build_mode, jp_events_build_mode);", main)
+        # Later stages may append additional CLI build labels after stage 6.
+        self.assertIn("jp_join_build_mode, jp_events_build_mode", main)
 
     def test_double_injection_fail_closed(self) -> None:
         with self.assertRaisesRegex(ValueError, "already applied"):
