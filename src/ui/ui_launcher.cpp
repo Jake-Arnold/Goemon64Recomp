@@ -135,6 +135,11 @@ public:
 #else
         version_string += " [timer-off]";
 #endif
+#ifdef GOEMON_JP_THREAD_STAGE2_ACTIVE
+        version_string += " [threads-audit]";
+#else
+        version_string += " [threads-off]";
+#endif
 #endif
         constructor.Bind("version_number", &version_string);
 
