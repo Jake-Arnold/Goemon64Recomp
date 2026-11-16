@@ -59,6 +59,8 @@ class GuestStopStage3Tests(unittest.TestCase):
 
     def test_stop_request_sets_flag_before_waking(self) -> None:
         out = self.output
+        self.assertIn("stop=%s;", out)
+        self.assertIn('"requested" : "not-armed"', out)
         request = out.split(
             "void ultramodern::request_guest_shutdown_for_future_reset()", 1
         )[1].split("\n}", 1)[0]
