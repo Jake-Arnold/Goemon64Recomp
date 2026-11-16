@@ -98,23 +98,27 @@ def apply_verified_native_hooks(generated_dir: Path, japanese_rom: Path) -> dict
         from .relocate_task_callbacks import validate_rom as verify_callbacks_rom, inject as patch_callbacks
         from .jp_data_fixups import validate_rom as verify_data_rom, inject as patch_data
         from .jp_file80_data_fixups import validate_rom as verify_file80_rom, inject as patch_file80
+        from .jp_sasuke_bomb_camera_fix import validate_rom as verify_sasuke_rom, inject as patch_sasuke
     except ImportError:
         from jp_loader_hook import check_rom as verify_loader_rom, inject as patch_loader
         from relocate_task_callbacks import validate_rom as verify_callbacks_rom, inject as patch_callbacks
         from jp_data_fixups import validate_rom as verify_data_rom, inject as patch_data
         from jp_file80_data_fixups import validate_rom as verify_file80_rom, inject as patch_file80
+        from jp_sasuke_bomb_camera_fix import validate_rom as verify_sasuke_rom, inject as patch_sasuke
 
     rom_data = japanese_rom.read_bytes()
     verify_loader_rom(rom_data)
     verify_callbacks_rom(rom_data)
     verify_data_rom(rom_data)
     verify_file80_rom(rom_data)
+    verify_sasuke_rom(rom_data)
 
     targets = [
         (generated_dir / "funcs_0.c", patch_loader),
         (generated_dir / "funcs_8.c", patch_callbacks),
         (generated_dir / "funcs_8.c", patch_data),
         (generated_dir / "funcs_8.c", patch_file80),
+        (generated_dir / "funcs_32.c", patch_sasuke),
     ]
     # Stage all patches in memory, including multiple transforms of funcs_8.c.
     # A failed ROM/anchor gate must not leave a half-patched generated directory.
@@ -131,6 +135,7 @@ def apply_verified_native_hooks(generated_dir: Path, japanese_rom: Path) -> dict
         "native_tlb_task_callback_hook": "func_800143AC_14FAC",
         "native_overlay_56_data_fixups": 15,
         "native_overlay_80_data_fixups": 6,
+        "native_sasuke_bomb_camera": "0x802119E0",
         "patched_generated_c_units": [str(source) for source in prepared],
         "status": "Verified Japanese native hooks applied to private generated C",
     }
