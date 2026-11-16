@@ -489,11 +489,19 @@ if(GOEMON_BUILD_JAPAN)
     # Experimental JP reset stage 2: count guest OSThread host lifecycles.
     # No guest worker is stopped and no guest memory is reset at this stage.
     option(GOEMON_JP_THREAD_STAGE2 "Enable Japanese guest thread reset audit" OFF)
+    option(GOEMON_JP_GUEST_STAGE3 "Enable JP guest cooperative stop primitives (disabled in UI)" OFF)
+    if(GOEMON_JP_GUEST_STAGE3 AND NOT GOEMON_JP_THREAD_STAGE2)
+        message(FATAL_ERROR "GOEMON_JP_GUEST_STAGE3 requires GOEMON_JP_THREAD_STAGE2=ON")
+    endif()
     if(GOEMON_JP_THREAD_STAGE2 AND NOT GOEMON_JP_TIMER_STAGE1)
         message(FATAL_ERROR "GOEMON_JP_THREAD_STAGE2 requires GOEMON_JP_TIMER_STAGE1=ON")
     endif()
     if(GOEMON_JP_THREAD_STAGE2)
-        set(JP_THREAD_SCRIPT "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_guest_threads_runtime.py")
+        if(GOEMON_JP_GUEST_STAGE3)
+            set(JP_THREAD_SCRIPT "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_guest_quiescence_stage3.py")
+        else()
+            set(JP_THREAD_SCRIPT "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_guest_threads_runtime.py")
+        endif()
         set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${JP_THREAD_SCRIPT}")
         execute_process(
             COMMAND "${Python3_EXECUTABLE}" "${JP_THREAD_SCRIPT}"
@@ -536,6 +544,9 @@ if(GOEMON_BUILD_JAPAN)
     endif()
     if(GOEMON_JP_THREAD_STAGE2)
         target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JP_THREAD_STAGE2_ACTIVE)
+    endif()
+    if(GOEMON_JP_GUEST_STAGE3)
+        target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JP_GUEST_STAGE3_ACTIVE)
     endif()
     # Regenerate the build-commit identifier on every JP build. The script
     # writes only when content changes; incremental compilation stays fast.
