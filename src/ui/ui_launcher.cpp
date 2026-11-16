@@ -165,6 +165,11 @@ public:
 #else
         version_string += " [boot-save-audio-off]";
 #endif
+#ifdef GOEMON_JP_GRAPHICS_STAGE8_ACTIVE
+        version_string += " [graphics-queue-audit]";
+#else
+        version_string += " [graphics-queue-off]";
+#endif
 #endif
         constructor.Bind("version_number", &version_string);
 
