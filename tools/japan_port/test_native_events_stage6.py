@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import importlib.util
 from pathlib import Path
+import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -152,13 +154,20 @@ class NativeEventWorkerStage6Tests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "already applied"):
             mod.instrument_events(no_header)
 
-    def test_generation_output_is_atomic_and_noop_if_unchanged(self) -> None:
+    def test_generation_is_idempotent_on_disk(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "events.cpp"
-            path.write_text(self.output, encoding="utf-8")
-            first = path.stat().st_mtime_ns
+            args = [
+                sys.executable, str(PATCHER), "--runtime",
+                str(ROOT / "lib/N64ModernRuntime"), "--output", folder,
+            ]
+            first = subprocess.run(args, check=True, capture_output=True, text=True)
+            self.assertIn("Updated", first.stdout)
             self.assertEqual(path.read_text(encoding="utf-8"), self.output)
-            self.assertEqual(first, path.stat().st_mtime_ns)
+            mtime = path.stat().st_mtime_ns
+            second = subprocess.run(args, check=True, capture_output=True, text=True)
+            self.assertIn("Unchanged", second.stdout)
+            self.assertEqual(mtime, path.stat().st_mtime_ns)
 
 
 if __name__ == "__main__":
