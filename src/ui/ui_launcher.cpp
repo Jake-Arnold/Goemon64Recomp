@@ -155,6 +155,11 @@ public:
 #else
         version_string += " [join-prep-off]";
 #endif
+#ifdef GOEMON_JP_EVENTS_STAGE6_ACTIVE
+        version_string += " [native-events-audit]";
+#else
+        version_string += " [native-events-off]";
+#endif
 #endif
         constructor.Bind("version_number", &version_string);
 
