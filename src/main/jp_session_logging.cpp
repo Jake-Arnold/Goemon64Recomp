@@ -157,7 +157,7 @@ void stop_session() noexcept {
     g_session = nullptr;
 }
 
-void retain_recent_sessions(const fs::path& directory) noexcept {
+void retain_recent_sessions(const fs::path& directory, const fs::path& current) noexcept {
     try {
         std::error_code ec;
         std::vector<fs::path> paths;
@@ -165,14 +165,15 @@ void retain_recent_sessions(const fs::path& directory) noexcept {
             if (ec) break;
             const std::string name = entry.path().filename().string();
             if (name.starts_with("session-") && name.ends_with(".log") &&
-                entry.is_regular_file(ec) && !ec) {
+                entry.path() != current && entry.is_regular_file(ec) && !ec) {
                 paths.push_back(entry.path());
             }
         }
         // Names begin with sortable local timestamps; PID and unique suffix
         // make simultaneous launches use separate files.
         std::sort(paths.begin(), paths.end(), std::greater<>());
-        for (std::size_t i = kLogRetention; i < paths.size(); ++i)
+        // The just-opened log is never removed, even after a clock jump.
+        for (std::size_t i = kLogRetention - 1; i < paths.size(); ++i)
             fs::remove(paths[i], ec);
     } catch (...) {
         // Rotation must never prevent the game from starting.
@@ -286,7 +287,7 @@ bool goemon_jp::logging::start_session(const char* version, const char* git_comm
             fs::rename(temporary, directory / "latest.log", ec);
             if (ec) fs::remove(temporary, ec);
         }
-        retain_recent_sessions(directory);
+        retain_recent_sessions(directory, current);
         std::fprintf(stderr, "[Goemon JP session log] %s\n", current.c_str());
         std::fprintf(stderr, "[Goemon JP build] version=%s commit=%s pid=%ld\n",
                      version ? version : "unknown", git_commit ? git_commit : "unknown",
