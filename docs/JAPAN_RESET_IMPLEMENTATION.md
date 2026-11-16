@@ -158,5 +158,10 @@ v0.2.8-dev file 80 compatibility fix is verified by the user to load scene 129.
 v0.2.9-dev adds opt-in N64 message-queue wait instrumentation, bounded
 external-message checkpoints, and a normal-exit guest-cleaner drain report.
 See `docs/JAPAN_RESET_QUEUE_STAGE4.md`. F8 remains diagnostic-only.
-The next reset milestone, v0.2.10-dev, must coordinate guest thread
-termination/joining and external workers before any RDRAM reset.
+v0.2.10-dev adds a guarded, inactive guest-host-thread join predicate,
+a future-stop scheduling gate, join notifications, and F8-only readiness
+diagnostics. See `docs/JAPAN_RESET_GUEST_JOIN_STAGE5.md`. The predicate
+cannot be invoked by gameplay; no guest termination, full host-worker
+quiescence, or RDRAM reinitialisation is implemented. The next reset
+milestone must coordinate native boot/event/render/audio/save workers,
+quiesce every guest host thread, and verify a same-PID boot transaction.
