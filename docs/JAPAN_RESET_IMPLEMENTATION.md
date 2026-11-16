@@ -173,6 +173,11 @@ preserves file writes, playback, the existing event/timer shutdown order,
 and the pinned runtime submodule. See
 `docs/JAPAN_RESET_BOOT_SAVE_AUDIO_STAGE7.md`. All stage-7 shutdown
 predicates are inactive; this is an ownership census, NOT a reset.
-The next milestone must coordinate guest generations and all native
-workers, prove save/audio safety, and reinitialize boot/RDRAM while
-preserving the PC process and window.
+v0.2.13-dev adds read-only graphics-action settlement counters
+(submitted/started/completed) and a best-effort action-queue depth
+snapshot. It does not drop, replay or clear queued work. See
+`docs/JAPAN_RESET_GRAPHICS_QUEUE_STAGE8.md`. The Ubuntu
+`pending_gfx=1` normal-exit finding remains a blocker for any real
+same-process reset. A future generation-scoped stop must quiesce all
+guest and native workers and settle every queue before reinitialising
+boot/RDRAM while preserving the PC process and window.
