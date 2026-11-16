@@ -9,6 +9,7 @@ import shutil
 import signal
 import subprocess
 import tempfile
+import time
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -22,6 +23,7 @@ HARNESS = r"""
 #include <cstdlib>
 #include <csignal>
 #include <cstring>
+#include <unistd.h>
 
 int main(int argc, char** argv) {
     const char* mode = argc > 1 ? argv[1] : "normal";
@@ -32,6 +34,17 @@ int main(int argc, char** argv) {
     if (std::strcmp(mode, "segv") == 0) { std::fflush(nullptr); raise(SIGSEGV); }
     if (std::strcmp(mode, "abort") == 0) { std::fflush(nullptr); raise(SIGABRT); }
     if (std::strcmp(mode, "quick") == 0) std::quick_exit(17);
+    if (std::strcmp(mode, "heldpipe") == 0) {
+        const pid_t child = fork();
+        if (child < 0) return 89;
+        if (child == 0) {
+            // Retain only stdout and stderr's logger pipe writer. Drop
+            // inherited parent capture descriptors so communicate() ends.
+            for (int fd = 3; fd < 256; ++fd) close(fd);
+            sleep(2);
+            _exit(0);
+        }
+    }
     return 0;
 }
 """
@@ -117,6 +130,14 @@ class PersistentLogTests(unittest.TestCase):
         text = (self.logdir / "latest.log").read_text()
         self.assertIn("[test-stdout]", text)
         self.assertIn("[test-stderr]", text)
+
+    def test_inherited_pipe_writer_cannot_hang_normal_shutdown(self):
+        started = time.monotonic()
+        p = self.launch("heldpipe")
+        elapsed = time.monotonic() - started
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertLess(elapsed, 1.5, "logger must not wait for inherited write descriptors")
+        self.assertIn("[test-stderr]", (self.logdir / "latest.log").read_text())
 
     def test_noinit_creates_no_log(self):
         self.assertEqual(self.launch("noinit").returncode, 0)
