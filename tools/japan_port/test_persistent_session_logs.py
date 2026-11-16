@@ -158,6 +158,25 @@ class PersistentLogTests(unittest.TestCase):
         self.assertEqual(p.wait(timeout=5), 0)
         self.assertIn("[test-stderr]", (self.logdir / "latest.log").read_text())
 
+    def test_standalone_start_with_both_standard_descriptors_closed(self):
+        env = os.environ.copy()
+        env["XDG_STATE_HOME"] = str(self.home / "xdg-state")
+        env["HOME"] = str(self.home)
+
+        def launch_without_terminal():
+            resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+            os.close(1)
+            os.close(2)
+
+        result = subprocess.run(
+            [str(self.binary), "normal"], env=env,
+            capture_output=True, text=True, timeout=10,
+            preexec_fn=launch_without_terminal,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("[test-stderr]", (self.logdir / "latest.log").read_text())
+        self.assertIn("[test-stdout]", (self.logdir / "latest.log").read_text())
+
     def test_noinit_creates_no_log(self):
         self.assertEqual(self.launch("noinit").returncode, 0)
         self.assertFalse(self.logdir.exists())
