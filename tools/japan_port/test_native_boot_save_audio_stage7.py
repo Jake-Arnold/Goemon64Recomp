@@ -55,22 +55,29 @@ class NativeBootSaveAudioStage7Tests(unittest.TestCase):
         )
 
     def test_boot_join_precedes_timer_and_unmap(self):
-        src = self.boot
+        # Scope the ordering assertion to normal application shutdown.
+        # The same source also unmaps RDRAM earlier on allocation failure.
+        shutdown = self.boot.split("    graphics_shutdown_ready.signal();\n", 1)[1]
         points = [
-            src.index("game_thread.join();"),
-            src.index("jp_boot_thread_joined.store(true, std::memory_order_release);"),
-            src.index("ultramodern::shutdown_timers();"),
-            src.index("ultramodern::join_event_threads();"),
-            src.index("ultramodern::join_saving_thread();"),
-            src.index("munmap(rdram, allocation_size)"),
+            shutdown.index("game_thread.join();"),
+            shutdown.index("jp_boot_thread_joined.store(true, std::memory_order_release);"),
+            shutdown.index("ultramodern::shutdown_timers();"),
+            shutdown.index("ultramodern::join_event_threads();"),
+            shutdown.index("ultramodern::join_thread_cleaner_thread();"),
+            shutdown.index("ultramodern::join_saving_thread();"),
+            shutdown.index("// Free rdram."),
+            shutdown.index("munmap(rdram, allocation_size)"),
         ]
         self.assertEqual(points, sorted(points))
-        self.assertIn("[Goemon JP boot exit]", src)
+        self.assertIn("[Goemon JP boot exit]", shutdown)
 
     def test_boot_join_predicate_is_not_reset_barrier(self):
         self.assertIn("bool recomp::jp_native_boot_joined_for_future_reset()", self.boot)
         self.assertIn("!jp_boot_entry_active.load", self.boot)
-        self.assertNotIn("jp_native_boot_joined_for_future_reset();", self.boot)
+        # The early namespace forward declaration necessarily ends in ();
+        # exactly one such occurrence is allowed (the declaration, not a call).
+        self.assertIn("    bool jp_native_boot_joined_for_future_reset();", self.boot)
+        self.assertEqual(self.boot.count("jp_native_boot_joined_for_future_reset();"), 1)
 
     def test_save_worker_lifetime_and_join(self):
         s = self.pi
