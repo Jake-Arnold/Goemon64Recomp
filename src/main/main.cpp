@@ -61,7 +61,7 @@
 #include "../../lib/rt64/src/contrib/stb/stb_image.h"
 
 #ifdef GOEMON_JAPAN_NATIVE
-const std::string version_string = "0.2.10-dev";
+const std::string version_string = "0.2.11-dev";
 #ifdef GOEMON_JP_TIMER_STAGE1_ACTIVE
 constexpr const char* jp_timer_build_mode = " [timer-stage1]";
 #else
@@ -86,6 +86,11 @@ constexpr const char* jp_queue_build_mode = " [queue-off]";
 constexpr const char* jp_join_build_mode = " [join-prep]";
 #else
 constexpr const char* jp_join_build_mode = " [join-prep-off]";
+#endif
+#ifdef GOEMON_JP_EVENTS_STAGE6_ACTIVE
+constexpr const char* jp_events_build_mode = " [native-events-audit]";
+#else
+constexpr const char* jp_events_build_mode = " [native-events-off]";
 #endif
 #else
 const std::string version_string = "0.2.3-dev";
@@ -185,7 +190,7 @@ ultramodern::renderer::WindowHandle create_window(ultramodern::gfx_callbacks_t::
 
 #ifdef GOEMON_JAPAN_NATIVE
     const std::string window_title = "Goemon 64: Recompiled JP v" + version_string +
-        " (" + GOEMON_JP_BUILD_COMMIT + (GOEMON_JP_BUILD_DIRTY ? "-dirty" : "") + ")" + jp_timer_build_mode + jp_thread_build_mode + jp_guest_build_mode + jp_queue_build_mode + jp_join_build_mode;
+        " (" + GOEMON_JP_BUILD_COMMIT + (GOEMON_JP_BUILD_DIRTY ? "-dirty" : "") + ")" + jp_timer_build_mode + jp_thread_build_mode + jp_guest_build_mode + jp_queue_build_mode + jp_join_build_mode + jp_events_build_mode;
 #else
     const std::string window_title = "Goemon 64: Recompiled";
 #endif
@@ -621,11 +626,11 @@ void reorder_texture_pack(recomp::mods::ModContext&) {
 int main(int argc, char** argv) {
     if (argc >= 2 && std::strcmp(argv[1], "--version") == 0) {
 #ifdef GOEMON_JAPAN_NATIVE
-        printf("Goemon 64: Recompiled JP v%s (%s%s)%s%s%s%s%s\n",
+        printf("Goemon 64: Recompiled JP v%s (%s%s)%s%s%s%s%s%s\n",
                version_string.c_str(), GOEMON_JP_BUILD_COMMIT,
                GOEMON_JP_BUILD_DIRTY ? "-dirty" : "", jp_timer_build_mode,
                jp_thread_build_mode, jp_guest_build_mode, jp_queue_build_mode,
-               jp_join_build_mode);
+               jp_join_build_mode, jp_events_build_mode);
 #else
         printf("Goemon 64: Recompiled v%s\n", version_string.c_str());
 #endif
