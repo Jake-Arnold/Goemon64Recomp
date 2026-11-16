@@ -11,6 +11,10 @@
 #include "promptfont.h"
 #include "GamepadMotion.hpp"
 
+#ifdef GOEMON_JP_THREAD_STAGE2_ACTIVE
+namespace ultramodern { void report_guest_thread_reset_blockers(); }
+#endif
+
 constexpr float axis_threshold = 0.5f;
 
 struct ControllerState {
@@ -539,6 +543,9 @@ void recomp::poll_inputs() {
         fprintf(stderr,
                 "[Goemon JP reset] Request received; native reset backend not installed. "
                 "Game continues without modification.\n");
+#ifdef GOEMON_JP_THREAD_STAGE2_ACTIVE
+        ultramodern::report_guest_thread_reset_blockers();
+#endif
     }
     reset_was_held = reset_held;
 #endif
