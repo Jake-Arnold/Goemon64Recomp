@@ -87,6 +87,12 @@ def instrument_recomp_stage7(original: str) -> str:
         raise ValueError("Stage9 requires the generated stage7 recomp source")
     source = once(
         original,
+        "#include <cstdio>\n#include <atomic>\n",
+        "#include <cstdio>\n#include <atomic>\n#include <cstdint>\n",
+        "normal exit guest join API integer header",
+    )
+    source = once(
+        source,
         "namespace ultramodern { void shutdown_timers(); }\n",
         "namespace ultramodern { void shutdown_timers(); }\n"
         "namespace ultramodern {\n"
