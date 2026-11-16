@@ -91,6 +91,39 @@ def generate(repo_root: Path, splat: Path, asm_root: Path, rom: Path) -> dict:
     }
 
 
+def apply_verified_native_hooks(generated_dir: Path, japanese_rom: Path) -> dict:
+    """Patch only private generated code, after independent ROM and anchor gates."""
+    try:
+        from .jp_loader_hook import check_rom as verify_loader_rom, inject as patch_loader
+        from .relocate_task_callbacks import validate_rom as verify_callbacks_rom, inject as patch_callbacks
+    except ImportError:
+        from jp_loader_hook import check_rom as verify_loader_rom, inject as patch_loader
+        from relocate_task_callbacks import validate_rom as verify_callbacks_rom, inject as patch_callbacks
+
+    rom_data = japanese_rom.read_bytes()
+    verify_loader_rom(rom_data)
+    verify_callbacks_rom(rom_data)
+
+    targets = [
+        (generated_dir / "funcs_0.c", patch_loader),
+        (generated_dir / "funcs_8.c", patch_callbacks),
+    ]
+    # Prepare both patches BEFORE changing either file, to prevent half a
+    # patched build after an unexpected recompiler output change.
+    prepared = []
+    for source, inject in targets:
+        updated = inject(source.read_text())
+        prepared.append((source, updated))
+    for source, updated in prepared:
+        source.write_text(updated)
+    return {
+        "native_overlay_loader_hook": "func_80001BA0_27A0",
+        "native_tlb_task_callback_hook": "func_800143AC_14FAC",
+        "patched_generated_c_units": [str(source) for source, _ in prepared],
+        "status": "Verified Japanese native hooks applied to private generated C",
+    }
+
+
 def main() -> int:
     cli=argparse.ArgumentParser(description=__doc__)
     cli.add_argument('--japan-splat',type=Path,required=True)
@@ -102,9 +135,13 @@ def main() -> int:
                      help='Explicitly run installed N64Recomp (may fail on incomplete symbols)')
     cli.add_argument('--recompiler',type=Path,
                      help='Existing executable path; only used with --run-recompiler')
+    cli.add_argument('--prepare-native-hooks', action='store_true',
+                     help='Apply validated Japanese overlay/callback runtime hooks to generated C')
     args=cli.parse_args()
     if args.run_recompiler and args.recompiler is None:
         cli.error('--recompiler is required with --run-recompiler')
+    if args.prepare_native_hooks and not args.run_recompiler:
+        cli.error('--prepare-native-hooks requires --run-recompiler')
     report=generate(args.repo_root,args.japan_splat,args.japan_asm,
                     args.japan_decompressed_rom)
     if args.run_recompiler:
@@ -115,6 +152,13 @@ def main() -> int:
                        cwd=args.repo_root.resolve(),check=True)
         report['n64recomp_trial_executed']=True
         report['warning']='Trial code generation returned zero; gameplay not tested'
+        if args.prepare_native_hooks:
+            import tomllib
+            cfg = tomllib.loads((args.repo_root / 'mnsg.japan.toml').read_text())['input']
+            generated_dir = args.repo_root / cfg['output_func_path']
+            report.update(apply_verified_native_hooks(
+                generated_dir, args.japan_decompressed_rom.resolve()
+            ))
     print(json.dumps(report,indent=2))
     return 0
 
