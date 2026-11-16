@@ -60,7 +60,11 @@
 
 #include "../../lib/rt64/src/contrib/stb/stb_image.h"
 
+#ifdef GOEMON_JAPAN_NATIVE
 const std::string version_string = "0.2.4-dev";
+#else
+const std::string version_string = "0.2.3-dev";
+#endif
 
 template<typename... Ts>
 void exit_error(const char* str, Ts ...args) {
