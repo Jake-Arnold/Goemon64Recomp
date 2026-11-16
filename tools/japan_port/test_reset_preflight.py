@@ -2,7 +2,7 @@
 """Static guardrails for the JP native reset input preflight.
 
 These intentionally test the safety boundary, not an in-process reset:
-v0.2.4-dev must not quit, spawn, or re-exec the native process on F8.
+The input stage must not quit, spawn, or re-exec the native process on F8.
 Runtime reset implementation will require additional integration tests.
 """
 from __future__ import annotations
@@ -33,7 +33,7 @@ class ResetInputPreflightTests(unittest.TestCase):
 
     def test_reset_is_edge_triggered_and_menu_safe(self) -> None:
         text = source("src/game/input.cpp")
-        preflight = text.split("// Input plumbing only:", 1)[1].split("#endif", 1)[0]
+        preflight = text.split("// Input plumbing only:", 1)[1].split("\nvoid recomp::set_rumble(", 1)[0]
         self.assertIn("reset_held && !reset_was_held", preflight)
         self.assertIn("ultramodern::is_game_started()", preflight)
         self.assertIn("!recomp::game_input_disabled()", preflight)
@@ -42,7 +42,7 @@ class ResetInputPreflightTests(unittest.TestCase):
 
     def test_preflight_does_not_stop_or_restart_game(self) -> None:
         text = source("src/game/input.cpp")
-        preflight = text.split("// Input plumbing only:", 1)[1].split("#endif", 1)[0]
+        preflight = text.split("// Input plumbing only:", 1)[1].split("\nvoid recomp::set_rumble(", 1)[0]
         for unsafe in ("ultramodern::quit(", "execv(", "execl(", "std::system(", "SDL_Quit(", "abort(", "exit("):
             self.assertNotIn(unsafe, preflight)
         self.assertIn("backend not installed", preflight)
