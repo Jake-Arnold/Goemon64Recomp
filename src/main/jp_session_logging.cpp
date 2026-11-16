@@ -207,9 +207,11 @@ bool goemon_jp::logging::start_session(const char* version, const char* git_comm
                 const int flags = (standard == STDIN_FILENO ? O_RDONLY : O_WRONLY)
                     | O_CLOEXEC;
                 const int nullfd = ::open("/dev/null", flags);
-                if (nullfd >= 0 && nullfd != standard) {
-                    ::dup2(nullfd, standard);
+                if (nullfd < 0) return false;
+                if (nullfd != standard) {
+                    const bool ok = ::dup2(nullfd, standard) >= 0;
                     ::close(nullfd);
+                    if (!ok) return false;
                 }
             }
         }
