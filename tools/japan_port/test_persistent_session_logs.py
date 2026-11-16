@@ -178,6 +178,20 @@ class PersistentLogTests(unittest.TestCase):
         self.assertIn("[test-stderr]", (self.logdir / "latest.log").read_text())
         self.assertIn("[test-stdout]", (self.logdir / "latest.log").read_text())
 
+    def test_default_home_state_path_when_xdg_state_home_is_unset(self):
+        env = os.environ.copy()
+        env.pop("XDG_STATE_HOME", None)
+        env["HOME"] = str(self.home)
+        p = subprocess.run(
+            [str(self.binary), "normal"], env=env,
+            capture_output=True, text=True, timeout=10,
+            preexec_fn=lambda: resource.setrlimit(resource.RLIMIT_CORE, (0, 0)),
+        )
+        self.assertEqual(p.returncode, 0, p.stderr)
+        latest = self.home / ".local/state/goemon64recomp-jp/logs/latest.log"
+        self.assertTrue(latest.exists())
+        self.assertIn("[test-stdout]", latest.read_text())
+
     def test_noinit_creates_no_log(self):
         self.assertEqual(self.launch("noinit").returncode, 0)
         self.assertFalse(self.logdir.exists())
