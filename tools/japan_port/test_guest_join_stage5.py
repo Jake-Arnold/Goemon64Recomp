@@ -167,8 +167,15 @@ class GuestJoinStage5Tests(unittest.TestCase):
     def test_patcher_fail_closed_and_idempotent_writes(self) -> None:
         with self.assertRaises(ValueError):
             patch.instrument_threads(self.threads)
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(ValueError, "already applied"):
             patch.instrument_scheduler(self.scheduler)
+        # Fail closed even if a copied generated file lost its header.
+        partial = self.scheduler.replace(
+            "// JP stage-5 scheduler stop gate; original submodule unchanged.\\n",
+            "", 1,
+        )
+        with self.assertRaisesRegex(ValueError, "already applied"):
+            patch.instrument_scheduler(partial)
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "threads.cpp"
             self.assertTrue(patch.stage4.stage3.write_if_changed(path, self.threads))
