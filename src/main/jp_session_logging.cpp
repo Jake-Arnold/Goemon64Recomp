@@ -199,6 +199,21 @@ fs::path get_directory() {
 bool goemon_jp::logging::start_session(const char* version, const char* git_commit) noexcept {
     try {
         if (g_session) return true;
+        // Desktop launchers may close fd 1 or 2. Fill those standard slots
+        // BEFORE opening the log file: otherwise mkstemps could take fd 1,
+        // which the later dup2 redirect would close and corrupt logging.
+        // Graphical launchers are allowed to close stdout/stderr entirely.
+        // Ensure pipe() cannot allocate FD 1/2 as its read end, which would
+        // be invalidated when dup2 redirects the standard descriptors.
+        for (int standard : {STDOUT_FILENO, STDERR_FILENO}) {
+            if (::fcntl(standard, F_GETFD) < 0 && errno == EBADF) {
+                const int nullfd = ::open("/dev/null", O_WRONLY | O_CLOEXEC);
+                if (nullfd >= 0 && nullfd != standard) {
+                    ::dup2(nullfd, standard);
+                    ::close(nullfd);
+                }
+            }
+        }
         const fs::path directory = get_directory();
         if (directory.empty()) return false;
         std::error_code ec;
@@ -224,18 +239,6 @@ bool goemon_jp::logging::start_session(const char* version, const char* git_comm
         if (original_flags >= 0) ::fcntl(file, F_SETFL, original_flags | O_APPEND);
         ::fchmod(file, 0600);
 
-        // Graphical launchers are allowed to close stdout/stderr entirely.
-        // Ensure pipe() cannot allocate FD 1/2 as its read end, which would
-        // be invalidated when dup2 redirects the standard descriptors.
-        for (int standard : {STDOUT_FILENO, STDERR_FILENO}) {
-            if (::fcntl(standard, F_GETFD) < 0 && errno == EBADF) {
-                const int nullfd = ::open("/dev/null", O_WRONLY | O_CLOEXEC);
-                if (nullfd >= 0 && nullfd != standard) {
-                    ::dup2(nullfd, standard);
-                    ::close(nullfd);
-                }
-            }
-        }
         int fds[2];
         if (::pipe(fds) != 0) { ::close(file); return false; }
         ::fcntl(fds[0], F_SETFD, FD_CLOEXEC);
