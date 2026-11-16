@@ -47,8 +47,23 @@ class GuestStopStage3Tests(unittest.TestCase):
         )[0]
         self.assertLess(create.index("jp_guest_contexts.insert(context);"),
                         create.index("context->host_thread = std::thread{"))
-        self.assertLess(create.index("context->initialized.wait();"),
-                        create.index("jp_guest_creations_in_flight.fetch_sub"))
+        # The rejection path decrements before spawning; the successful
+        # path decrements only after the host thread acknowledges startup.
+        # Test them separately instead of selecting the first decrement.
+        self.assertEqual(create.count("jp_guest_creations_in_flight.fetch_sub("), 2)
+        initialized = create.index("context->initialized.wait();")
+        rejection_decrement = create.index(
+            "jp_guest_creations_in_flight.fetch_sub(1, std::memory_order_relaxed);"
+        )
+        success_decrement = create.index(
+            "jp_guest_creations_in_flight.fetch_sub(1, std::memory_order_release);"
+        )
+        self.assertLess(rejection_decrement, initialized)
+        self.assertLess(initialized, success_decrement)
+        self.assertLess(
+            create.index("jp_guest_threads_created.fetch_add("),
+            success_decrement,
+        )
         cleaner = out.split("void thread_cleaner_func()", 1)[1].split(
             "void ultramodern::init_thread_cleanup()", 1
         )[0]
