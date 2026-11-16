@@ -170,6 +170,11 @@ public:
 #else
         version_string += " [graphics-queue-off]";
 #endif
+#ifdef GOEMON_JP_EXIT_STAGE9_ACTIVE
+        version_string += " [guest-exit-drain]";
+#else
+        version_string += " [guest-exit-off]";
+#endif
 #endif
         constructor.Bind("version_number", &version_string);
 
