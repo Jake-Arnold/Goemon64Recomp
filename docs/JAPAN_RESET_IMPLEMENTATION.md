@@ -154,5 +154,9 @@ registry, stop-request scaffolding and cooperative scheduler checkpoints,
 without arming a shutdown in gameplay. See `docs/JAPAN_RESET_GUEST_STAGE3.md`.
 It is not a complete quiescence/join barrier: native main-thread, RSP/VI,
 message queues and the thread cleaner still require coordination. The
-next reset development version is v0.2.9-dev; v0.2.8-dev is dedicated
-to the scene 129 file 80 compatibility regression and does not enable reset.
+v0.2.8-dev file 80 compatibility fix is verified by the user to load scene 129.
+v0.2.9-dev adds opt-in N64 message-queue wait instrumentation, bounded
+external-message checkpoints, and a normal-exit guest-cleaner drain report.
+See `docs/JAPAN_RESET_QUEUE_STAGE4.md`. F8 remains diagnostic-only.
+The next reset milestone, v0.2.10-dev, must coordinate guest thread
+termination/joining and external workers before any RDRAM reset.
