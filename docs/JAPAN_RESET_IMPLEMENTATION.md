@@ -187,3 +187,17 @@ including diagnostic stdout/stderr from desktop launches, per-launch
 log files, a stable `latest.log` shortcut and fatal-signal breadcrumbs.
 See `docs/JAPAN_PERSISTENT_SESSION_LOGS.md`. Logging is independent of
 F8 reset and does not change shutdown or N64 memory semantics.
+
+v0.2.15-dev resolves the separately verified Yamato scene307 Sasuke-bomb
+camera pointer crash: the user confirmed the bomb now explodes. The change
+is a strict ROM-gated Japanese generated-C fix and does not change reset
+semantics. See `docs/JAPAN_SASUKE_BOMB_CAMERA_CRASH.md`.
+
+v0.2.16-dev introduces opt-in **guest exit drain stage9**. On *normal PC
+application exit only*, after the native game-start thread joins, stage9
+requests cooperative guest shutdown and waits for all guest host workers
+to join. If this bounded proof fails, it retains RDRAM mapping until the
+OS exits rather than unmapping while guests remain live. F8 still prints
+read-only diagnostics and cannot stop the game. See
+`docs/JAPAN_RESET_GUEST_EXIT_STAGE9.md`. This is one prerequisite for a
+future generation stop/restart coordinator, not a complete soft reset.
