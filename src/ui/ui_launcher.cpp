@@ -150,6 +150,11 @@ public:
 #else
         version_string += " [queue-off]";
 #endif
+#ifdef GOEMON_JP_JOIN_STAGE5_ACTIVE
+        version_string += " [join-prep]";
+#else
+        version_string += " [join-prep-off]";
+#endif
 #endif
         constructor.Bind("version_number", &version_string);
 
