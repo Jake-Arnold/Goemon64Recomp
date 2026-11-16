@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import resource
 from pathlib import Path
 import shutil
 import signal
@@ -74,6 +75,9 @@ class PersistentLogTests(unittest.TestCase):
         return subprocess.run(
             [str(self.binary), mode], env=env,
             capture_output=True, text=True, timeout=20,
+            # Deliberately triggered SIGSEGV/SIGABRT must not leave huge
+            # system core files during the lightweight logger unit tests.
+            preexec_fn=lambda: resource.setrlimit(resource.RLIMIT_CORE, (0, 0)),
         )
 
     def logs(self):
