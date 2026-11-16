@@ -4,9 +4,9 @@
 # Run from any directory: bash tools/japan_port/capture_native_crash.sh
 set -euo pipefail
 
-repo_root="$(cd -- "$(dirname -- "\${BASH_SOURCE[0]}")/../.." && pwd)"
-binary="\${GOEMON_JP_BINARY:-$repo_root/Goemon64RecompiledJP}"
-log="\${GOEMON_JP_CRASH_LOG:-$HOME/goemon-japan-crash.log}"
+repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+binary="${GOEMON_JP_BINARY:-$repo_root/Goemon64RecompiledJP}"
+log="${GOEMON_JP_CRASH_LOG:-$HOME/goemon-japan-crash.log}"
 
 if ! command -v gdb >/dev/null 2>&1; then
     printf 'gdb missing. On Ubuntu install with: sudo apt install gdb\n' >&2
