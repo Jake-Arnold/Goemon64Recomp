@@ -17,6 +17,9 @@ namespace ultramodern { void report_guest_thread_reset_blockers(); }
 #ifdef GOEMON_JP_GUEST_STAGE3_ACTIVE
 namespace ultramodern { void report_guest_shutdown_readiness(); }
 #endif
+#ifdef GOEMON_JP_QUEUE_STAGE4_ACTIVE
+namespace ultramodern { void report_guest_message_queue_waits(); }
+#endif
 
 constexpr float axis_threshold = 0.5f;
 
@@ -552,6 +555,9 @@ void recomp::poll_inputs() {
 #ifdef GOEMON_JP_GUEST_STAGE3_ACTIVE
         // Diagnostic only; NEVER arm guest shutdown from input.
         ultramodern::report_guest_shutdown_readiness();
+#endif
+#ifdef GOEMON_JP_QUEUE_STAGE4_ACTIVE
+        ultramodern::report_guest_message_queue_waits();
 #endif
     }
     reset_was_held = reset_held;
