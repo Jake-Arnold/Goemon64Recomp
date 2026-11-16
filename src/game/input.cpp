@@ -26,6 +26,14 @@ namespace ultramodern { void report_guest_join_barrier_readiness(); }
 #ifdef GOEMON_JP_EVENTS_STAGE6_ACTIVE
 namespace ultramodern { void jp_report_native_event_worker_blockers(); }
 #endif
+#ifdef GOEMON_JP_BOOT_STAGE7_ACTIVE
+namespace recomp { void jp_report_native_boot_lifecycle(); }
+namespace ultramodern {
+    void jp_report_save_worker_lifecycle();
+    void jp_report_audio_dispatch_lifecycle();
+}
+void jp_report_sdl_audio_queue();
+#endif
 
 constexpr float axis_threshold = 0.5f;
 
@@ -572,6 +580,13 @@ void recomp::poll_inputs() {
 #ifdef GOEMON_JP_EVENTS_STAGE6_ACTIVE
         // Audit native host workers; never interrupt live VI/GFX/RSP from F8.
         ultramodern::jp_report_native_event_worker_blockers();
+#endif
+#ifdef GOEMON_JP_BOOT_STAGE7_ACTIVE
+        // Read-only audit: never request shutdown, save flush or audio pause.
+        recomp::jp_report_native_boot_lifecycle();
+        ultramodern::jp_report_save_worker_lifecycle();
+        ultramodern::jp_report_audio_dispatch_lifecycle();
+        jp_report_sdl_audio_queue();
 #endif
     }
     reset_was_held = reset_held;
