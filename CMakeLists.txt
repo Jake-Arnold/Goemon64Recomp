@@ -437,6 +437,55 @@ if(GOEMON_BUILD_JAPAN)
     if(NOT EXISTS "${GOEMON_JAPAN_STATIC_LIB}")
         message(FATAL_ERROR "Japanese native recompilation archive is required")
     endif()
+    # Experimental reset prerequisite: make pinned runtime timer joinable
+    # before RDRAM teardown. Opt-in, and does NOT implement a reset yet.
+    option(GOEMON_JP_TIMER_STAGE1 "Enable experimental JP timer lifecycle stage" OFF)
+    if(GOEMON_JP_TIMER_STAGE1)
+        find_package(Python3 REQUIRED COMPONENTS Interpreter)
+        set(JP_TIMER_SCRIPT "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_timer_runtime.py")
+        set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${JP_TIMER_SCRIPT}")
+        set(JP_TIMER_RUNTIME_ROOT "${CMAKE_SOURCE_DIR}/lib/N64ModernRuntime")
+        set(JP_TIMER_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/jp_reset_timer_runtime")
+        execute_process(
+            COMMAND "${Python3_EXECUTABLE}" "${JP_TIMER_SCRIPT}"
+                --runtime "${JP_TIMER_RUNTIME_ROOT}"
+                --output "${JP_TIMER_GENERATED_DIR}"
+            RESULT_VARIABLE JP_TIMER_PATCH_RESULT
+            OUTPUT_VARIABLE JP_TIMER_PATCH_OUTPUT
+            ERROR_VARIABLE JP_TIMER_PATCH_ERROR)
+        if(NOT JP_TIMER_PATCH_RESULT EQUAL 0)
+            message(FATAL_ERROR
+                "JP reset timer source overlay failed (pinned runtime mismatch?):\n"
+                "${JP_TIMER_PATCH_OUTPUT}\n${JP_TIMER_PATCH_ERROR}")
+        endif()
+        message(STATUS "${JP_TIMER_PATCH_OUTPUT}")
+
+        # Replace just the two original source files in the CMake targets.
+        # No files in lib/N64ModernRuntime are modified.
+        get_target_property(JP_TIMER_ULTRA_SOURCES ultramodern SOURCES)
+        list(FIND JP_TIMER_ULTRA_SOURCES
+            "${JP_TIMER_RUNTIME_ROOT}/ultramodern/src/timer.cpp"
+            JP_TIMER_SOURCE_INDEX)
+        if(JP_TIMER_SOURCE_INDEX EQUAL -1)
+            message(FATAL_ERROR "Original timer.cpp not found in ultramodern target")
+        endif()
+        list(REMOVE_ITEM JP_TIMER_ULTRA_SOURCES
+            "${JP_TIMER_RUNTIME_ROOT}/ultramodern/src/timer.cpp")
+        set_property(TARGET ultramodern PROPERTY SOURCES ${JP_TIMER_ULTRA_SOURCES})
+        target_sources(ultramodern PRIVATE "${JP_TIMER_GENERATED_DIR}/timer.cpp")
+
+        get_target_property(JP_TIMER_RECOMP_SOURCES librecomp SOURCES)
+        list(FIND JP_TIMER_RECOMP_SOURCES
+            "${JP_TIMER_RUNTIME_ROOT}/librecomp/src/recomp.cpp"
+            JP_RECOMP_SOURCE_INDEX)
+        if(JP_RECOMP_SOURCE_INDEX EQUAL -1)
+            message(FATAL_ERROR "Original recomp.cpp not found in librecomp target")
+        endif()
+        list(REMOVE_ITEM JP_TIMER_RECOMP_SOURCES
+            "${JP_TIMER_RUNTIME_ROOT}/librecomp/src/recomp.cpp")
+        set_property(TARGET librecomp PROPERTY SOURCES ${JP_TIMER_RECOMP_SOURCES})
+        target_sources(librecomp PRIVATE "${JP_TIMER_GENERATED_DIR}/recomp.cpp")
+    endif()
     # Reuse the existing frontend sources and shared shader/icon build rules.
     get_target_property(JP_SOURCES Goemon64Recompiled SOURCES)
     list(REMOVE_ITEM JP_SOURCES
