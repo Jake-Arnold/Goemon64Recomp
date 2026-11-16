@@ -3,6 +3,7 @@
 #include "jp_session_logging.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cerrno>
 #include <csignal>
 #include <cstddef>
@@ -20,6 +21,7 @@
 #include <vector>
 
 #include <fcntl.h>
+#include <poll.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -38,6 +40,7 @@ struct Session {
     int saved_stdout = -1;
     int saved_stderr = -1;
     int read_pipe = -1;
+    std::atomic_bool exit_requested{false};
     std::thread reader;
 };
 Session* g_session = nullptr;
@@ -147,6 +150,10 @@ void stop_session() noexcept {
     else ::close(STDOUT_FILENO);
     if (s->saved_stderr >= 0) ::dup2(s->saved_stderr, STDERR_FILENO);
     else ::close(STDERR_FILENO);
+    // A subprocess may inherit an extra copy of the stdout pipe writer.
+    // Stop after the pipe has stayed empty for one poll interval even if
+    // such an inherited descriptor has not closed yet.
+    s->exit_requested.store(true, std::memory_order_release);
     if (s->reader.joinable()) s->reader.join();
     g_signal_log_fd = -1;
     g_signal_console_fd = -1;
@@ -236,6 +243,15 @@ bool goemon_jp::logging::start_session(const char* version, const char* git_comm
                 const int console = s->saved_stderr >= 0 ?
                     s->saved_stderr : s->saved_stdout;
                 for (;;) {
+                    pollfd ready{s->read_pipe, POLLIN, 0};
+                    const int polled = ::poll(&ready, 1, 75);
+                    if (polled < 0 && errno == EINTR) continue;
+                    if (polled < 0) break;
+                    if (polled == 0) {
+                        if (s->exit_requested.load(std::memory_order_acquire)) break;
+                        continue;
+                    }
+                    if (!(ready.revents & (POLLIN | POLLHUP))) break;
                     const ssize_t n = ::read(s->read_pipe, buffer, sizeof(buffer));
                     if (n < 0 && errno == EINTR) continue;
                     if (n <= 0) break;
