@@ -32,6 +32,16 @@ def once(source: str, needle: str, replacement: str, label: str) -> str:
 
 def instrument_threads(original: str) -> str:
     src = stage4.instrument_threads(original)
+    # Stage 2 intentionally prefixes a forward declaration ahead of the
+    # original C++ includes. The stage-5 API introduces std::uint32_t in
+    # that early declaration, so <cstdint> must precede it.
+    src = once(
+        src,
+        "// Generated JP guest-thread reset audit; original submodule not modified.\n",
+        "// Generated JP guest-thread reset audit; original submodule not modified.\n"
+        "#include <cstdint>\n",
+        "early join API integer type include",
+    )
     src = once(
         src,
         "#include <mutex>\n#include <unordered_set>\n",
@@ -43,7 +53,7 @@ def instrument_threads(original: str) -> str:
         "    void guest_shutdown_checkpoint();\n",
         "    void guest_shutdown_checkpoint();\n"
         "    bool guest_shutdown_requested_for_future_reset();\n"
-        "    bool wait_for_guest_joins_for_future_reset(uint32_t timeout_ms);\n"
+        "    bool wait_for_guest_joins_for_future_reset(std::uint32_t timeout_ms);\n"
         "    void report_guest_join_barrier_readiness();\n",
         "join barrier namespace declarations",
     )
@@ -67,7 +77,7 @@ bool ultramodern::guest_shutdown_requested_for_future_reset() {
 // can be cleared: the native boot, renderer, RSP, VI, DMA, save, timer and
 // other event workers are NOT included in this registry.
 // No production code calls this method in v0.2.10.
-bool ultramodern::wait_for_guest_joins_for_future_reset(uint32_t timeout_ms) {
+bool ultramodern::wait_for_guest_joins_for_future_reset(std::uint32_t timeout_ms) {
     if (thread_self != NULLPTR ||
         !jp_guest_stop_requested.load(std::memory_order_acquire)) {
         return false; // Calling from a guest would wait on itself.
