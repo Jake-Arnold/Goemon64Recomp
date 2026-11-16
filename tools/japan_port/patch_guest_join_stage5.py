@@ -155,6 +155,12 @@ void ultramodern::report_guest_join_barrier_readiness() {
 
 
 def instrument_scheduler(original: str) -> str:
+    # The pinned function signatures remain in generated output, so exact
+    # anchor checks alone cannot detect a second patch application.
+    marker = "// JP stage-5 scheduler stop gate; original submodule unchanged."
+    declaration = "namespace ultramodern { bool guest_shutdown_requested_for_future_reset(); }"
+    if marker in original or declaration in original:
+        raise ValueError("Stage-5 scheduling stop gate already applied")
     src = original
     src = once(
         src, '#include "ultramodern/ultramodern.hpp"\n',
