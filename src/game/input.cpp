@@ -26,6 +26,9 @@ namespace ultramodern { void report_guest_join_barrier_readiness(); }
 #ifdef GOEMON_JP_EVENTS_STAGE6_ACTIVE
 namespace ultramodern { void jp_report_native_event_worker_blockers(); }
 #endif
+#ifdef GOEMON_JP_GRAPHICS_STAGE8_ACTIVE
+namespace ultramodern { void jp_report_graphics_queue_settlement(); }
+#endif
 #ifdef GOEMON_JP_BOOT_STAGE7_ACTIVE
 namespace recomp { void jp_report_native_boot_lifecycle(); }
 namespace ultramodern {
