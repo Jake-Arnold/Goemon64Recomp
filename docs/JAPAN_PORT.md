@@ -381,6 +381,35 @@ python3 tools/japan_port/jp_loader_hook.py \
 
 Do not commit `funcs_0.c` or any other generated game code. The script refuses incorrect ROM revisions, missing loader functions, and repeated application.
 
-### Remaining playability blocker
+### TLB overlay task callback translation — native progress
 
-The native executable currently proceeds through introductory scenes, but a subsequent gameplay transition can fail at unresolved TLB-addressed function pointer `0x08000C18`. The USA version's `patches/required.c` includes region-specific corrections for functions involving TLB overlay tasks (`func_8001481C_1541C` and `func_8001198C_1258C`); their Japanese equivalents and relocation offsets need to be adapted and tested, without reusing the USA addresses. Free movement, scene transitions, combat and saving have **not** been fully verified. The Japanese port is **bootable and interactive but not yet confirmed fully playable**.
+After the Japanese opening scenes, native execution previously aborted on a callback lookup for `0x08000C18`. This is **not missing compiled code**: the callback is `func_08000C18_7157A8` within Japanese overlay `file_54`. Its ROM span is `0x714B90`–`0x716020`; the guest loaded it at `0x803D4000`, so the correct callback is `0x803D4C18`.
+
+The original game calls `osMapTLB` to map overlay-relative code addresses from `0x08000000` into physical RAM, but the pinned N64ModernRuntime implements `osMapTLB_recomp` and `osUnmapTLBAll_recomp` as no-ops. The native task scheduler eventually uses the unmapped virtual callback. The task structure at `0x801703B0` had `file_id=54`, callback at offset `0x0C = 0x08000C18`. The Japanese function `func_80013D54_14954` already resolves the loaded destination base for a given file ID.
+
+A guarded source-only helper, `tools/japan_port/relocate_task_callbacks.py`, updates **private generated C** for the Japanese task-setup function `func_800143AC_14FAC`. Immediately after the original mapping request it translates three callback fields only when they are in the expected `0x08000000` range, bounds-checks them against their Japanese ROM file-table entry and the loaded KSEG0 address range, and preserves the MIPS register context. The helper refuses any other Japanese ROM revision, altered generated-C anchors or duplicate application. It is **not** a general replacement for the N64 TLB.
+
+A local instrumented run confirmed the conversion:
+
+```text
+task=0x801703B0  file_id=54  callback 0x08000C18 -> 0x803D4C18
+```
+
+It also translated callbacks for overlays 27, 32, 43 and 61. The executable proceeded past the previous abort into further 3D Japanese street scenes with no unresolved callback lookup during the observed run. This is **experimental native execution evidence**, not a complete gameplay compatibility test.
+
+The existing Japanese overlay loader bridge and callback fix can now be **reproducibly applied after N64Recomp generation**:
+
+```bash
+python3 tools/japan_port/prepare_japan_recomp.py \
+  --repo-root /path/to/Goemon64Recomp \
+  --japan-splat /path/to/mnsg/config/japan_0/splat.yaml \
+  --japan-asm /path/to/mnsg/asm/japan_0 \
+  --japan-decompressed-rom /path/to/mnsg/config/japan_0/baserom.decompressed.z64 \
+  --run-recompiler \
+  --recompiler /path/to/pinned/N64Recomp \
+  --prepare-native-hooks
+```
+
+The workflow prepares and validates both injections before modifying any generated C: `jp_loader_hook.py` for `funcs_0.c` and `relocate_task_callbacks.py` for `funcs_8.c`. The generated output stays in ignored `build-generated/`; no ROM, extracted C or generated game executable is added to the Git repository.
+
+**Remaining playability gates:** verify unassisted movement, menus, scenes, combat, controls, audio and saves across extended play; investigate any remaining TLB-dependent memory accesses or callbacks; build a reliable Linux package with only runtime dependencies and user-provided ROM import. A bootable and interactive Japanese PC build exists, but **full playability is not yet established**.
