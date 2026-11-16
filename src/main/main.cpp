@@ -61,7 +61,7 @@
 #include "../../lib/rt64/src/contrib/stb/stb_image.h"
 
 #ifdef GOEMON_JAPAN_NATIVE
-const std::string version_string = "0.2.7-dev";
+const std::string version_string = "0.2.8-dev";
 #ifdef GOEMON_JP_TIMER_STAGE1_ACTIVE
 constexpr const char* jp_timer_build_mode = " [timer-stage1]";
 #else
