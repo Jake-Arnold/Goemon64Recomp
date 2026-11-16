@@ -42,7 +42,8 @@ namespace recomp {
     #define DEFINE_RECOMP_UI_INPUTS() \
         DEFINE_INPUT(TOGGLE_MENU, 0, "Toggle Menu", "Open or close this configuration menu from in game.") \
         DEFINE_INPUT(ACCEPT_MENU, 0, "Accept (Menu)", "In the recomp interface, performs the action for the currently highlighted item. Like pressing a button, or toggling a switch.") \
-        DEFINE_INPUT(APPLY_MENU, 0, "Apply (Menu)", "In the recomp interface, if changes are made to a configuration that requires applying your settings, this will apply the current changes.")
+        DEFINE_INPUT(APPLY_MENU, 0, "Apply (Menu)", "In the recomp interface, if changes are made to a configuration that requires applying your settings, this will apply the current changes.") \
+        DEFINE_INPUT(RESET_GAME, 0, "Reset Game", "Restart the running game from the title screen. Unsaved progress will be lost.")
 
     #define DEFINE_ALL_INPUTS() \
         DEFINE_N64_AXIS_INPUTS() \
@@ -70,6 +71,7 @@ namespace recomp {
     };
 
     void poll_inputs();
+    bool is_game_restart_requested();
     float get_input_analog(const InputField& field);
     float get_input_analog(const std::span<const recomp::InputField> fields);
     bool get_input_digital(const InputField& field);
@@ -118,6 +120,7 @@ namespace recomp {
         std::vector<InputField> toggle_menu;
         std::vector<InputField> accept_menu;
         std::vector<InputField> apply_menu;
+        std::vector<InputField> reset_game;
     };
 
     inline const std::vector<InputField>& get_default_mapping_for_input(const DefaultN64Mappings& defaults, const GameInput input) {
@@ -144,6 +147,7 @@ namespace recomp {
             case GameInput::TOGGLE_MENU: return defaults.toggle_menu;
             case GameInput::ACCEPT_MENU: return defaults.accept_menu;
             case GameInput::APPLY_MENU: return defaults.apply_menu;
+            case GameInput::RESET_GAME: return defaults.reset_game;
             default: return empty_input_field;
         }
     }
