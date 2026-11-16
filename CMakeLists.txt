@@ -496,6 +496,9 @@ if(GOEMON_BUILD_JAPAN)
         "${CMAKE_SOURCE_DIR}/src/main/register_patches_japan.cpp")
     add_executable(Goemon64RecompiledJP ${JP_SOURCES})
     target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JAPAN_NATIVE)
+    if(GOEMON_JP_TIMER_STAGE1)
+        target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JP_TIMER_STAGE1_ACTIVE)
+    endif()
     # Regenerate the build-commit identifier on every JP build. The script
     # writes only when content changes; incremental compilation stays fast.
     set(JP_BUILD_ID_HEADER "${CMAKE_CURRENT_BINARY_DIR}/goemon_japan_build_id.h")
