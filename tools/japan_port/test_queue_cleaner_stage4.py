@@ -64,6 +64,18 @@ class QueueCleanerStage4Tests(unittest.TestCase):
         self.assertIn("std::chrono::milliseconds{10}", func)
         self.assertEqual(func.count("ultramodern::guest_shutdown_checkpoint();"), 2)
 
+    def test_timed_external_wait_checks_cancel_on_success_and_timeout(self) -> None:
+        src = self.queue
+        func = src.split("void ultramodern::wait_for_external_message_timed(", 1)[1].split(
+            'extern "C" void osCreateMesgQueue(', 1
+        )[0]
+        self.assertIn("external_messages.wait_dequeue_timed(", func)
+        self.assertEqual(func.count("ultramodern::guest_shutdown_checkpoint();"), 2)
+        self.assertLess(
+            func.index("ultramodern::guest_shutdown_checkpoint();"),
+            func.index("do_send(PASS_RDRAM to_send.mq"),
+        )
+
     def test_cleaner_drains_ready_completions_before_idle_exit(self) -> None:
         src = self.threads
         func = src.split("void thread_cleaner_func()", 1)[1].split(
