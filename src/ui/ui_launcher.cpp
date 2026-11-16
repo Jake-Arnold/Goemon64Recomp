@@ -130,6 +130,11 @@ public:
 #ifdef GOEMON_JAPAN_NATIVE
         version_string += " (" + std::string(GOEMON_JP_BUILD_COMMIT) +
             (GOEMON_JP_BUILD_DIRTY ? "-dirty" : "") + ")";
+#ifdef GOEMON_JP_TIMER_STAGE1_ACTIVE
+        version_string += " [timer-stage1]";
+#else
+        version_string += " [timer-off]";
+#endif
 #endif
         constructor.Bind("version_number", &version_string);
 
