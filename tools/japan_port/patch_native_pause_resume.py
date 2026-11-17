@@ -1,0 +1,239 @@
+#!/usr/bin/env python3
+"""JP-only F6 cooperative pause/resume overlay for the integrated reset tree.
+
+The SDL frontend remains responsive. This is an opt-in frame/event/guest-
+scheduler pause, NOT a savestate and NOT an arbitrary native-stack freeze.
+All source anchors are pinned and exact: fail at CMake configure on drift.
+"""
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+
+
+def once(src: str, old: str, new: str, label: str) -> str:
+    count = src.count(old)
+    if count != 1:
+        raise ValueError(f"JP F6 pause {label}: expected exactly one source anchor, got {count}")
+    return src.replace(old, new, 1)
+
+
+PAUSE_TIMER_API = r"""// F6 changes the clock and the host-worker gate in a deliberate order:
+// on pause freeze emulated time FIRST; on resume shift the timebase before
+// releasing waiting guest/native workers. It never tears down RDRAM.
+bool ultramodern::jp_set_guest_paused(bool pause) {
+    const bool changed = jp_timer_epoch_clock.set_paused(pause);
+    (void)goemon_jp::pause::controller().set_paused(pause);
+    const auto snapshot = jp_timer_epoch_clock.snapshot();
+    if (changed) {
+        std::fprintf(stderr,
+            "[Goemon JP pause] state=%s generation=%llu ticks=%llu "
+            "guest_time=%llu pid=unchanged window=preserved; F6 toggles.\n",
+            pause ? "PAUSED" : "RUNNING",
+            static_cast<unsigned long long>(snapshot.generation),
+            static_cast<unsigned long long>(snapshot.ticks),
+            static_cast<unsigned long long>(snapshot.guest_time));
+    }
+    return changed;
+}
+
+bool ultramodern::jp_guest_is_paused() {
+    return goemon_jp::pause::controller().is_paused();
+}
+
+"""
+
+
+def timer(src: str) -> str:
+    if "jp_set_guest_paused(" in src:
+        raise ValueError("Timer source already paused")
+    src = once(src,
+        '#include "jp_timer_epoch_clock.hpp"\n',
+        '#include "jp_timer_epoch_clock.hpp"\n'
+        '#include "jp_pause_controller.hpp"\n'
+        'namespace ultramodern {\n'
+        '    bool jp_set_guest_paused(bool);\n'
+        '    bool jp_guest_is_paused();\n'
+        '}\n',
+        "clock+pause controller includes")
+    src = once(src,
+        'void ultramodern::jp_report_timer_epoch_stage18() {\n',
+        PAUSE_TIMER_API + 'void ultramodern::jp_report_timer_epoch_stage18() {\n',
+        "host pause state and clock setter")
+    src = once(src,
+        '    while (true) {\n'
+        '        // Empty the action queue\n',
+        '    while (true) {\n'
+        '        // Timer actions and messages remain pending during pause.\n'
+        '        // Exit/reset first releases the gate so shutdown is still joined.\n'
+        '        (void)goemon_jp::pause::controller().wait_if_paused(exited);\n'
+        '        // Empty the action queue\n',
+        "timer worker safe boundary")
+    src = once(src,
+        '        else {\n'
+        '            // Waiting for the timer completed, so send the timer\'s message to its message queue\n',
+        '        else {\n'
+        '            // A timed dequeue uses host wall-time. If F6 paused\n'
+        '            // mid-wait, never deliver early after resume: compare\n'
+        '            // against the shifted guest-time deadline again.\n'
+        '            (void)goemon_jp::pause::controller().wait_if_paused(exited);\n'
+        '            if (!exited.load(std::memory_order_acquire) &&\n'
+        '                time_now() < cur_timer->timestamp) {\n'
+        '                active_timers.insert(cur_timer_);\n'
+        '                continue;\n'
+        '            }\n'
+        '            // Waiting for the timer completed, so send the timer\'s message to its message queue\n',
+        "timer interrupt delivery with clock deadline recheck")
+    return "// JP F6 cooperative pause: timer worker, guest clock and N64 time.\n" + src
+
+
+def events(src: str) -> str:
+    if "JP F6 cooperative pause" in src:
+        raise ValueError("Events source already paused")
+    src = once(src,
+        '#include "ultramodern/ultramodern.hpp"\n',
+        '#include "ultramodern/ultramodern.hpp"\n'
+        '#include "jp_pause_controller.hpp"\n',
+        "native VI/gfx pause include")
+    src = once(src,
+        '    while (!exited) {\n'
+        '        // Determine the next VI time',
+        '    while (!exited) {\n'
+        '        if (!goemon_jp::pause::controller().wait_if_paused(exited)) break;\n'
+        '        // Determine the next VI time',
+        "VI frame boundary")
+    src = once(src,
+        '        ultramodern::sleep_until(next);\n'
+        '        auto time_now = ultramodern::time_since_start();\n',
+        '        ultramodern::sleep_until(next);\n'
+        '        if (!goemon_jp::pause::controller().wait_if_paused(exited)) break;\n'
+        '        auto time_now = ultramodern::time_since_start();\n',
+        "VI frame dispatch after wall-clock sleep")
+    src = once(src,
+        '        if (task == nullptr) {\n'
+        '            return;\n'
+        '        }\n\n'
+        '        if (!ultramodern::rsp::run_task',
+        '        if (task == nullptr) {\n'
+        '            return;\n'
+        '        }\n'
+        '        // Keep existing RSP tasks queued while paused.\n'
+        '        (void)goemon_jp::pause::controller().wait_if_paused(exited);\n\n'
+        '        if (!ultramodern::rsp::run_task',
+        "SP task execution checkpoint")
+    src = once(src,
+        '    while (!exited) {\n'
+        '        // Try to pull an action from the queue\n',
+        '    while (!exited) {\n'
+        '        if (!goemon_jp::pause::controller().wait_if_paused(exited)) break;\n'
+        '        // Try to pull an action from the queue\n',
+        "graphics action loop boundary")
+    src = once(src,
+        '        if (events_context.action_queue.wait_dequeue_timed(action, 1ms)) {\n'
+        '            // Determine the action type and act on it\n',
+        '        if (events_context.action_queue.wait_dequeue_timed(action, 1ms)) {\n'
+        '            if (!goemon_jp::pause::controller().wait_if_paused(exited)) break;\n'
+        '            // Determine the action type and act on it\n',
+        "graphics action dispatch checkpoint")
+    return "// JP F6 cooperative pause: preserve last VI/frame/RSP and renderer.\n" + src
+
+
+def messages(src: str) -> str:
+    if "JP F6 cooperative pause" in src:
+        raise ValueError("N64 message source already paused")
+    src = once(src,
+        '#include "ultramodern/ultramodern.hpp"\n',
+        '#include "ultramodern/ultramodern.hpp"\n'
+        '#include "jp_pause_controller.hpp"\n',
+        "external N64 message pause include")
+    src = once(src,
+        'void dequeue_external_messages(RDRAM_ARG1) {\n',
+        'void dequeue_external_messages(RDRAM_ARG1) {\n'
+        '    (void)goemon_jp::pause::controller().wait_if_paused(exited);\n',
+        "external message batch checkpoint")
+    src = once(src,
+        '    external_messages.wait_dequeue(to_send);\n'
+        '    if (!do_send(',
+        '    external_messages.wait_dequeue(to_send);\n'
+        '    (void)goemon_jp::pause::controller().wait_if_paused(exited);\n'
+        '    if (!do_send(',
+        "external message wake checkpoint")
+    src = once(src,
+        '    if (external_messages.wait_dequeue_timed(to_send, std::chrono::milliseconds{millis})) {\n'
+        '        if (!do_send(',
+        '    if (external_messages.wait_dequeue_timed(to_send, std::chrono::milliseconds{millis})) {\n'
+        '        (void)goemon_jp::pause::controller().wait_if_paused(exited);\n'
+        '        if (!do_send(',
+        "timed message wake checkpoint")
+    return "// JP F6 cooperative pause: external message delivery to guest memory.\n" + src
+
+
+def threads(src: str) -> str:
+    if "JP F6 cooperative pause" in src:
+        raise ValueError("OSThread source already paused")
+    src = once(src,
+        '#include "ultramodern/threads.hpp"\n',
+        '#include "ultramodern/threads.hpp"\n'
+        '#include "jp_pause_controller.hpp"\n'
+        'extern std::atomic_bool exited;\n',
+        "OSThread pause includes and exit flag")
+    src = once(src,
+        '    thread_context->running.wait();\n'
+        '    // If this thread\'s context was replaced',
+        '    thread_context->running.wait();\n'
+        '    // Once an OSThread wakes, stop before resuming guest C code.\n'
+        '    (void)goemon_jp::pause::controller().wait_if_paused(exited);\n'
+        '    // If this thread\'s context was replaced',
+        "OSThread context resume checkpoint")
+    return "// JP F6 cooperative pause: OSThread dispatch/resume checkpoint.\n" + src
+
+
+def recomp(src: str) -> str:
+    if "JP F6 cooperative pause" in src:
+        raise ValueError("Recomp lifecycle already paused")
+    src = once(src,
+        'namespace recomp { bool jp_request_integrated_reset(); }\n',
+        'namespace recomp { bool jp_request_integrated_reset(); }\n'
+        'namespace ultramodern { bool jp_set_guest_paused(bool); }\n',
+        "recomp generation owner pause API")
+    src = once(src,
+        '    // End only the current guest-runner loop. Do NOT call\n',
+        '    // F8 must release workers parked by F6 BEFORE entering joins.\n'
+        '    (void)ultramodern::jp_set_guest_paused(false);\n'
+        '    // End only the current guest-runner loop. Do NOT call\n',
+        "F8 reset while paused releases guest workers")
+    src = once(src,
+        'void ultramodern::quit() {\n'
+        '    exited.store(true);\n',
+        'void ultramodern::quit() {\n'
+        '    // Window close while F6-paused must not strand worker joins.\n'
+        '    (void)ultramodern::jp_set_guest_paused(false);\n'
+        '    exited.store(true);\n',
+        "normal quit releases paused workers")
+    return "// JP F6 cooperative pause: F8 reset and normal quit release the gate.\n" + src
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--generated-dir", type=Path, required=True)
+    args = parser.parse_args()
+    d = args.generated_dir
+    overlays = [
+        ("timer_integrated.cpp", "timer_pause.cpp", timer),
+        ("events_integrated.cpp", "events_pause.cpp", events),
+        ("mesgqueue_integrated.cpp", "mesgqueue_pause.cpp", messages),
+        ("threads_reset.cpp", "threads_pause.cpp", threads),
+        ("recomp_integrated.cpp", "recomp_pause.cpp", recomp),
+    ]
+    for old_name, new_name, transform in overlays:
+        original = (d / old_name).read_text(encoding="utf-8")
+        modified = transform(original)
+        target = d / new_name
+        temp = target.with_suffix(".tmp")
+        temp.write_text(modified, encoding="utf-8")
+        temp.replace(target)
+        print(f"[JP F6 pause] {old_name} -> {new_name}")
+
+
+if __name__ == "__main__":
+    main()
