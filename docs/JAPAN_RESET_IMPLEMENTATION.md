@@ -201,3 +201,11 @@ OS exits rather than unmapping while guests remain live. F8 still prints
 read-only diagnostics and cannot stop the game. See
 `docs/JAPAN_RESET_GUEST_EXIT_STAGE9.md`. This is one prerequisite for a
 future generation stop/restart coordinator, not a complete soft reset.
+
+v0.2.17-dev introduces opt-in **action exit drain stage10**. After a
+successful normal-PC-exit guest join and all VI/GFX/SP worker joins, it
+classifies any abandoned action queue variants (screen/config/graphics),
+closes config-action publishing and drains the old queue. A failed guest
+or native worker join skips the drain. This explains and investigates
+the observed single residual action after stage9; it does NOT expose a
+live F8 stop or reset. See `docs/JAPAN_RESET_ACTION_DRAIN_STAGE10.md`.
