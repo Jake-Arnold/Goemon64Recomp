@@ -52,10 +52,16 @@ class SaveFinalizeStage16Tests(unittest.TestCase):
     def test_snapshot_captured_inside_save_file_lock(self):
         s = self.generated.split("void update_save_file() {", 1)[1].split(
             "extern std::atomic_bool exited;", 1)[0]
-        self.assertLess(s.index("std::lock_guard lock{ save_context.save_buffer_mutex }"),
-                        s.index("jp_save_snapshot_epoch ="))
-        self.assertLess(s.index("save_file.write(save_context.save_buffer.data()"),
-                        s.index("jp_save_snapshot_epoch ="))
+        # The local epoch declaration (= 0) is correctly outside the lock;
+        # the *snapshot assignment* must follow the locked file write.
+        self.assertIn("std::uint64_t jp_save_snapshot_epoch = 0;", s)
+        snapshot_assignment = s.index("jp_save_snapshot_epoch =\n")
+        self.assertLess(
+            s.index("std::lock_guard lock{ save_context.save_buffer_mutex }"),
+            snapshot_assignment)
+        self.assertLess(
+            s.index("save_file.write(save_context.save_buffer.data()"),
+            snapshot_assignment)
         self.assertIn("if (!save_file.good()) saving_failed = true;", s)
 
     def test_finalized_epoch_only_on_success(self):
