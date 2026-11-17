@@ -123,6 +123,10 @@ bool ultramodern::jp_rearm_events_after_verified_exit(std::uint64_t old_generati
             old_generation, true)) {
         return false;
     }
+    {
+        std::lock_guard<std::mutex> lock(jp_config_action_publish_mutex);
+        jp_config_actions_closed_for_pc_exit = false;
+    }
     return true;
 }
 
