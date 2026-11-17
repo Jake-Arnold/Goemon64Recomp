@@ -55,6 +55,10 @@ jobs:
             -I"${ROOT}/thirdparty/miniz"
             -I"${ROOT}/thirdparty"
             -I"${ROOT}/N64Recomp/include"
+            -I"${ROOT}/N64Recomp/lib/rabbitizer/include"
+            -I"${ROOT}/N64Recomp/lib/rabbitizer/cplusplus/include"
+            -I"${ROOT}/N64Recomp/lib/fmt/include"
+            -I"${ROOT}/N64Recomp/lib/tomlplusplus/include"
             -I"${ROOT}/ultramodern/src"
             -Isrc/game
             -Iinclude
