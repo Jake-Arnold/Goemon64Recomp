@@ -60,7 +60,10 @@ namespace ultramodern {
     bool jp_set_guest_paused(bool);
     bool jp_guest_is_paused();
 }
-namespace recomp { void jp_set_audio_paused(bool); }
+namespace recomp {
+    void jp_set_audio_paused(bool);
+    bool jp_request_integrated_reset();
+}
 #endif
 
 constexpr float axis_threshold = 0.5f;
@@ -158,6 +161,33 @@ bool sdl_event_filter(void* userdata, SDL_Event* event) {
     case SDL_EventType::SDL_KEYDOWN:
         {
             SDL_KeyboardEvent* keyevent = &event->key;
+#ifdef GOEMON_JP_NATIVE_F6_PAUSE_ACTIVE
+            // F6 must be handled by the host SDL event pump, NOT by
+            // poll_inputs(): the latter stops with guest VI scheduling.
+            // Accept only keydown edges; held/repeat events do not toggle.
+            if (!keyevent->repeat &&
+                keyevent->keysym.scancode == SDL_SCANCODE_F6) {
+                const bool paused = ultramodern::jp_guest_is_paused();
+                if (paused || (ultramodern::is_game_started() &&
+                               !recomp::all_input_disabled() &&
+                               !recomp::game_input_disabled())) {
+                    (void)ultramodern::jp_set_guest_paused(!paused);
+                    recomp::jp_set_audio_paused(!paused);
+                    return false; // Host hotkey is not a guest/UI key.
+                }
+            }
+            // A paused guest no longer polls F8 bindings. Let the same
+            // independent SDL event pump request the verified F8 reset.
+            if (!keyevent->repeat &&
+                keyevent->keysym.scancode == SDL_SCANCODE_F8 &&
+                ultramodern::jp_guest_is_paused()) {
+                (void)ultramodern::jp_set_guest_paused(false);
+                recomp::jp_set_audio_paused(false);
+                (void)recomp::jp_request_integrated_reset();
+                return false;
+            }
+#endif
+
 
             // Skip repeated events when not in the menu
             if (!recompui::is_context_capturing_input() &&
@@ -573,21 +603,6 @@ void recomp::poll_inputs() {
     }
     #endif
 
-#ifdef GOEMON_JP_NATIVE_F6_PAUSE_ACTIVE
-    // F6 is a host-only emulator-style toggle. No guest RAM writes, no
-    // game entrypoint replay, no process or SDL window lifecycle change.
-    // Never block the SDL event loop waiting for guest workers here.
-    static bool jp_pause_was_held = true;
-    const bool jp_pause_held = InputState.keys != nullptr &&
-        InputState.keys[SDL_SCANCODE_F6] != 0;
-    if (jp_pause_held && !jp_pause_was_held &&
-        ultramodern::is_game_started() && !recomp::all_input_disabled()) {
-        const bool paused = !ultramodern::jp_guest_is_paused();
-        (void)ultramodern::jp_set_guest_paused(paused);
-        recomp::jp_set_audio_paused(paused);
-    }
-    jp_pause_was_held = jp_pause_held;
-#endif
 
 #if defined(GOEMON_JAPAN_NATIVE)
     // Input plumbing only: the pinned runtime cannot safely reboot its
