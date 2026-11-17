@@ -30,8 +30,8 @@ class IntegratedResetTests(unittest.TestCase):
         self.assertIn(' " OFF)', self.cmake)
         self.assertIn("GOEMON_JP_INTEGRATED_F8_RESET_EXPERIMENTAL AND NOT GOEMON_JP_TIMER_EPOCH_STAGE18", self.cmake)
 
-    def test_five_generated_runtime_owners_together(self):
-        for name in ("threads_reset.cpp", "events_integrated.cpp",
+    def test_six_generated_runtime_owners_together(self):
+        for name in ("threads_reset.cpp", "mesgqueue_integrated.cpp", "events_integrated.cpp",
                      "timer_integrated.cpp", "pi_integrated.cpp",
                      "recomp_integrated.cpp"):
             self.assertIn(name, self.script)
@@ -53,6 +53,7 @@ class IntegratedResetTests(unittest.TestCase):
     def test_reset_goes_through_verified_normal_exit_barrier(self):
         self.assertIn("jp_exit_known_joined && jp_guest_exit_drained", self.script)
         self.assertIn("jp_integrated_rdram_released", self.script)
+        self.assertIn("jp_external_queue_drained", self.script)
         self.assertIn("reason=unproven-shutdown-or-memory-release", self.script)
         self.assertIn("result=ABORT", self.script)
 
@@ -86,20 +87,22 @@ class IntegratedResetTests(unittest.TestCase):
 
     def test_generated_runtime_integration(self):
         files = [GEN / name for name in
-                 ("threads_reset.cpp","events_integrated.cpp",
+                 ("threads_reset.cpp","mesgqueue_integrated.cpp","events_integrated.cpp",
                   "timer_integrated.cpp","pi_integrated.cpp",
                   "recomp_integrated.cpp")]
         if not all(f.exists() for f in files):
             self.skipTest("Run integrated reset CMake configure to generate runtime sources")
         texts = [f.read_text() for f in files]
         self.assertIn("jp_rearm_guest_after_verified_exit()", texts[0])
-        self.assertIn("jp_rearm_events_after_verified_exit(", texts[1])
-        self.assertIn("jp_rearm_timer_after_verified_exit(", texts[2])
-        self.assertIn("jp_rearm_saving_after_verified_exit()", texts[3])
-        self.assertIn("jp_request_integrated_reset()", texts[4])
-        self.assertIn("jp_exit_known_joined && jp_guest_exit_drained", texts[4])
-        self.assertIn("jp_integrated_rdram_released", texts[4])
-        self.assertIn("for (;;) {", texts[4])
+        self.assertIn("jp_flush_external_messages_after_join(", texts[1])
+        self.assertIn("jp_rearm_events_after_verified_exit(", texts[2])
+        self.assertIn("jp_rearm_timer_after_verified_exit(", texts[3])
+        self.assertIn("jp_rearm_saving_after_verified_exit()", texts[4])
+        self.assertIn("jp_request_integrated_reset()", texts[5])
+        self.assertIn("jp_exit_known_joined && jp_guest_exit_drained", texts[5])
+        self.assertIn("jp_integrated_rdram_released", texts[5])
+        self.assertIn("jp_external_queue_drained", texts[5])
+        self.assertIn("for (;;) {", texts[5])
 
     def test_host_double_reboot_gate_regression(self):
         compiler = shutil.which("g++") or shutil.which("c++")
