@@ -245,12 +245,26 @@ def recomp(src: str) -> str:
         "    if (jp_guest_exit_drained &&\n"
         "        ultramodern::jp_timer_exit_joined_stage17()) {\n"
         "    // Free rdram.\n",
+        "    bool jp_integrated_rdram_released = false;\n"
         "    if (jp_guest_exit_drained &&\n"
         "        ultramodern::jp_timer_exit_joined_stage17() &&\n"
         "        (!jp_integrated_restart_requested.load(std::memory_order_acquire) ||\n"
         "         jp_exit_known_joined)) {\n"
         "    // Free rdram.\n",
         "never release RDRAM on failed integrated shutdown barrier")
+
+    src = once(src,
+        '    if (free_failed) {\\n'
+        '        printf("Failed to free rdram\\\\n");\\n'
+        '    }\\n'
+        '    } else {\\n',
+        '    if (free_failed) {\\n'
+        '        printf("Failed to free rdram\\\\n");\\n'
+        '    } else {\\n'
+        '        jp_integrated_rdram_released = true;\\n'
+        '    }\\n'
+        '    } else {\\n',
+        "record successful verified RDRAM unmap for restart")
 
     # The original pinned file ends with recomp::start(), and Stage17 only
     # prefixes instrumentation. Insert BEFORE its final closing brace.
@@ -264,7 +278,7 @@ def recomp(src: str) -> str:
         const auto old_generation =
             jp_integrated_generation.load(std::memory_order_acquire);
         const bool joined = jp_exit_known_joined && jp_guest_exit_drained &&
-            ultramodern::jp_timer_exit_joined_stage17() && !free_failed;
+            ultramodern::jp_timer_exit_joined_stage17() &&\n            jp_integrated_rdram_released;
         if (!joined) {
             std::fprintf(stderr,
                 "[Goemon JP integrated reset] generation=%llu result=ABORT "
