@@ -1002,7 +1002,6 @@ if(GOEMON_BUILD_JAPAN)
         endforeach()
         target_compile_definitions(ultramodern PRIVATE GOEMON_JP_EXPERIMENTAL_RESET_BACKEND_ACTIVE)
         target_compile_definitions(librecomp PRIVATE GOEMON_JP_EXPERIMENTAL_RESET_BACKEND_ACTIVE)
-        target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JP_EXPERIMENTAL_RESET_BACKEND_ACTIVE)
         target_include_directories(ultramodern PRIVATE "${CMAKE_SOURCE_DIR}/src/game")
     endif()
 
@@ -1074,6 +1073,9 @@ if(GOEMON_BUILD_JAPAN)
     endif()
     if(GOEMON_JP_TIMER_EPOCH_STAGE18)
         target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JP_TIMER_EPOCH_STAGE18_ACTIVE)
+    endif()
+    if(GOEMON_JP_INTEGRATED_F8_RESET_EXPERIMENTAL)
+        target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JP_EXPERIMENTAL_RESET_BACKEND_ACTIVE)
     endif()
     # Regenerate the build-commit identifier on every JP build. The script
     # writes only when content changes; incremental compilation stays fast.
