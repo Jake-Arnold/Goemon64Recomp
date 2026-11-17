@@ -205,7 +205,7 @@ bool recomp::jp_request_integrated_reset() {
     }
     std::fprintf(stderr,
         "[Goemon JP integrated reset] request=1 generation=%llu "
-        "stopping=1 pid=unchanged; entering verified teardown.\\n",
+        "stopping=1 pid=unchanged; entering verified teardown.\n",
         static_cast<unsigned long long>(
             jp_integrated_generation.load(std::memory_order_acquire)));
     // End only the current guest-runner loop. Do NOT call
@@ -293,11 +293,12 @@ def recomp(src: str) -> str:
         const auto old_generation =
             jp_integrated_generation.load(std::memory_order_acquire);
         const bool joined = jp_exit_known_joined && jp_guest_exit_drained &&
-            ultramodern::jp_timer_exit_joined_stage17() &&\n            jp_integrated_rdram_released;
+            ultramodern::jp_timer_exit_joined_stage17() &&
+            jp_integrated_rdram_released;
         if (!joined) {
             std::fprintf(stderr,
                 "[Goemon JP integrated reset] generation=%llu result=ABORT "
-                "reason=unproven-shutdown-or-memory-release; no memory reuse.\\n",
+                "reason=unproven-shutdown-or-memory-release; no memory reuse.\n",
                 static_cast<unsigned long long>(old_generation));
             break; // Normal process exit; never re-enter half-joined state.
         }
@@ -316,7 +317,7 @@ def recomp(src: str) -> str:
         if (!audio_ready) {
             std::fprintf(stderr,
                 "[Goemon JP integrated reset] generation=%llu result=ABORT "
-                "reason=failed-generation-rearm; no new RDRAM allocated.\\n",
+                "reason=failed-generation-rearm; no new RDRAM allocated.\n",
                 static_cast<unsigned long long>(old_generation));
             break;
         }
@@ -333,7 +334,7 @@ def recomp(src: str) -> str:
         jp_integrated_restart_requested.store(false, std::memory_order_release);
         std::fprintf(stderr,
             "[Goemon JP integrated reset] generation=%llu result=REARMED "
-            "pid=unchanged window=preserved next_boot=1.\\n",
+            "pid=unchanged window=preserved next_boot=1.\n",
             static_cast<unsigned long long>(old_generation + 1));
         continue;
     }
