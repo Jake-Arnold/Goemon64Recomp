@@ -63,7 +63,8 @@ class IntegratedResetTests(unittest.TestCase):
                       "jp_rearm_events_after_verified_exit",
                       "jp_rearm_saving_after_verified_exit"):
             self.assertIn(token, self.script)
-        self.assertIn("if (!audio_ready)", self.script)
+        self.assertIn("if (!external_ready)", self.script)
+        self.assertIn("jp_rearm_external_messages_after_verified_exit(", self.script)
         self.assertIn("result=REARMED", self.script)
 
     def test_reuses_same_window_and_audio_device(self):
