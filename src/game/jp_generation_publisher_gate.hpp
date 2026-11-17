@@ -8,6 +8,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <cstdint>
+#include <limits>
 #include <mutex>
 #include <utility>
 
@@ -85,6 +86,25 @@ public:
         });
     }
 
+#ifdef GOEMON_JP_EXPERIMENTAL_RESET_BACKEND_ACTIVE
+    // Can only be invoked by the main reset owner after every old-generation
+    // guest and native producer has joined. Never called from F8.
+    [[nodiscard]] bool rearm_after_verified_exit(
+        std::uint64_t old_generation, bool all_old_workers_joined) noexcept {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (!all_old_workers_joined || open_ || in_flight_ != 0 ||
+            generation_ != old_generation ||
+            generation_ == std::numeric_limits<std::uint64_t>::max()) {
+            return false;
+        }
+        ++generation_;
+        accepted_ = 0;
+        rejected_ = 0;
+        open_ = true;
+        return true;
+    }
+#endif
+
     [[nodiscard]] Snapshot snapshot() const noexcept {
         std::lock_guard<std::mutex> lock(mutex_);
         return {generation_, accepted_, rejected_, in_flight_, open_};
@@ -102,7 +122,7 @@ private:
 
     mutable std::mutex mutex_;
     std::condition_variable idle_;
-    const std::uint64_t generation_;
+    std::uint64_t generation_;
     std::uint64_t accepted_ = 0;
     std::uint64_t rejected_ = 0;
     std::uint64_t in_flight_ = 0;
