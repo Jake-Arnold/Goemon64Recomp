@@ -31,6 +31,10 @@ class SaveFinalizeStage16Tests(unittest.TestCase):
         self.assertIn("jp_save_mutation_epoch", self.generated)
         self.assertIn("src = stage7.instrument_pi(original)", SCRIPT.read_text())
 
+    def test_required_cstdint_and_exception_headers(self):
+        self.assertIn("#include <cstdint>", self.generated)
+        self.assertIn("#include <exception>", self.generated)
+
     def test_three_mutations_counted_inside_buffer_mutex(self):
         s = self.generated
         self.assertEqual(
