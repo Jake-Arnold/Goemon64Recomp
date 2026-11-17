@@ -39,7 +39,17 @@ EXIT_FINALIZE = r"""    // Stage16: normal app EXIT ONLY. Guest spawning has fin
     if (jp_save_worker_joined.load(std::memory_order_acquire) &&
         jp_save_exit_expected > jp_save_exit_previous) {
         jp_save_exit_final_attempted = true;
-        update_save_file();
+        try {
+            update_save_file();
+        } catch (const std::exception& e) {
+            // Preserve failed-closed proof instead of unwinding shutdown.
+            std::fprintf(stderr,
+                "[Goemon JP save finalize stage16] final flush error: %s\\n",
+                e.what());
+        } catch (...) {
+            std::fprintf(stderr,
+                "[Goemon JP save finalize stage16] final flush unknown error.\\n");
+        }
     }
     const auto jp_save_exit_completed =
         jp_save_finalized_epoch.load(std::memory_order_acquire);
