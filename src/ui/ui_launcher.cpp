@@ -205,6 +205,11 @@ public:
 #else
         version_string += " [sdl-audio-exit-off]";
 #endif
+#ifdef GOEMON_JP_SAVE_STAGE16_ACTIVE
+        version_string += " [save-finalize]";
+#else
+        version_string += " [save-finalize-off]";
+#endif
 #endif
         constructor.Bind("version_number", &version_string);
 
