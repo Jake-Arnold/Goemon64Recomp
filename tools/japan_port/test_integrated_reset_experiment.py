@@ -88,8 +88,8 @@ class IntegratedResetTests(unittest.TestCase):
             subprocess.run([str(binary)], check=True, cwd=ROOT,
                            timeout=15)
 
-    def test_six_generated_runtime_owners_together(self):
-        for name in ("threads_reset.cpp", "mesgqueue_integrated.cpp", "events_integrated.cpp",
+    def test_seven_generated_runtime_owners_together(self):
+        for name in ("threads_reset.cpp", "threadqueue_integrated.cpp", "mesgqueue_integrated.cpp", "events_integrated.cpp",
                      "timer_integrated.cpp", "pi_integrated.cpp",
                      "recomp_integrated.cpp"):
             self.assertIn(name, self.script)
@@ -114,6 +114,34 @@ class IntegratedResetTests(unittest.TestCase):
         self.assertIn("jp_external_queue_drained", self.script)
         self.assertIn("reason=unproven-shutdown-or-memory-release", self.script)
         self.assertIn("result=ABORT", self.script)
+
+    def test_native_scheduler_queue_released_only_after_join(self):
+        # Static running_queue_impl is not in RDRAM, and survives munmap.
+        # Clearing it before all guest/native threads join would be unsafe.
+        scheduler_file = ROOT / "lib/N64ModernRuntime/ultramodern/src/threadqueue.cpp"
+        if not scheduler_file.is_file():
+            self.skipTest("Pinned runtime not checked out")
+        original = scheduler_file.read_text(encoding="utf-8")
+        self.assertIn(
+            "static PTR(OSThread) running_queue_impl = NULLPTR;", original)
+        self.assertNotIn("jp_clear_native_running_queue_after_verified_exit", original)
+        self.assertIn("jp_native_scheduler_queue_cleared", self.script)
+        self.assertIn("jp_exit_known_joined && jp_guest_exit_drained", self.script)
+        self.assertIn("jp_native_scheduler_queue_cleared &&", self.script)
+
+        import importlib.util
+        path = ROOT / "tools/japan_port/patch_integrated_reset_experiment.py"
+        spec = importlib.util.spec_from_file_location(
+            "jp_scheduler_rearm_test", path)
+        assert spec and spec.loader
+        patch = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(patch)
+        generated = patch.scheduler(original)
+        self.assertIn("if (!joined)", generated)
+        self.assertIn("running_queue_impl = NULLPTR;", generated)
+        self.assertIn("native_running_queue_cleared=1", generated)
+        with self.assertRaisesRegex(ValueError, "already instrumented"):
+            patch.scheduler(generated)
 
     def test_japanese_rom_decompression_is_restored_on_every_boot(self):
         # The upstream runtime mutates has_compressed_code=false after the
@@ -208,7 +236,7 @@ class IntegratedResetTests(unittest.TestCase):
         files = [GEN / name for name in
                  ("threads_reset.cpp","mesgqueue_integrated.cpp","events_integrated.cpp",
                   "timer_integrated.cpp","pi_integrated.cpp",
-                  "recomp_integrated.cpp")]
+                  "recomp_integrated.cpp", "threadqueue_integrated.cpp")]
         if not all(f.exists() for f in files):
             self.skipTest("Run integrated reset CMake configure to generate runtime sources")
         texts = [f.read_text() for f in files]
@@ -222,12 +250,15 @@ class IntegratedResetTests(unittest.TestCase):
         self.assertIn("jp_integrated_rdram_released", texts[5])
         self.assertIn("jp_external_queue_drained", texts[5])
         self.assertIn("for (;;) {", texts[5])
+        self.assertIn("jp_native_scheduler_queue_cleared", texts[5])
+        self.assertIn("jp_clear_native_running_queue_after_verified_exit", texts[6])
 
     def test_actual_pinned_runtime_generator_composition(self):
         # Exercise all six generated overlays from the actual pinned
         # N64ModernRuntime checkout; the old tests checked strings only.
         runtime = ROOT / "lib/N64ModernRuntime"
         inputs = {
+            "scheduler": runtime / "ultramodern/src/threadqueue.cpp",
             "threads": runtime / "ultramodern/src/threads.cpp",
             "messages": runtime / "ultramodern/src/mesgqueue.cpp",
             "events": runtime / "ultramodern/src/events.cpp",
@@ -259,6 +290,7 @@ class IntegratedResetTests(unittest.TestCase):
         original = {key: path.read_text(encoding="utf-8")
                     for key, path in inputs.items()}
         generated = {
+            "scheduler": original["scheduler"],
             "threads": stage9.instrument_threads(original["threads"]),
             "messages": stage9.stage8.stage6.stage5.stage4.instrument_messages(original["messages"]),
             "events": stage14.instrument_events(original["events"]),
@@ -270,6 +302,7 @@ class IntegratedResetTests(unittest.TestCase):
                     stage7.instrument_recomp(original["recomp"]))),
         }
         methods = {
+            "scheduler": integrated.scheduler,
             "threads": integrated.threads,
             "messages": integrated.messages,
             "events": integrated.events,
@@ -279,6 +312,7 @@ class IntegratedResetTests(unittest.TestCase):
         }
         emit_root = os.environ.get("JP_INTEGRATED_EMIT_DIR")
         outputs = {
+            "scheduler": "threadqueue_integrated.cpp",
             "threads": "threads_reset.cpp",
             "messages": "mesgqueue_integrated.cpp",
             "events": "events_integrated.cpp",
