@@ -128,6 +128,7 @@ class IntegratedResetTests(unittest.TestCase):
             spec.loader.exec_module(mod)
             return mod
 
+        stage7 = module("jp_reset_stage7_test", "patch_native_boot_save_audio_stage7.py")
         stage9 = module("jp_reset_stage9_test", "patch_guest_exit_stage9.py")
         stage14 = module("jp_reset_stage14_test", "patch_config_publisher_fence_stage14.py")
         stage12 = module("jp_reset_stage12_test", "patch_exit_barrier_stage12.py")
@@ -146,7 +147,8 @@ class IntegratedResetTests(unittest.TestCase):
                 stage17.instrument_timer(original["timer"])),
             "saving": stage16.instrument_pi(original["saving"]),
             "recomp": stage17.instrument_recomp_after_stage12(
-                stage12.instrument_recomp_stage7(original["recomp"])),
+                stage12.instrument_recomp_stage7(
+                    stage7.instrument_recomp(original["recomp"]))),
         }
         methods = {
             "threads": integrated.threads,
