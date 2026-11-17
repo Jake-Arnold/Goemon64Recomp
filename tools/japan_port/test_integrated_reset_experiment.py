@@ -159,11 +159,24 @@ class IntegratedResetTests(unittest.TestCase):
             "saving": integrated.saving,
             "recomp": integrated.recomp,
         }
+        emit_root = os.environ.get("JP_INTEGRATED_EMIT_DIR")
+        outputs = {
+            "threads": "threads_reset.cpp",
+            "messages": "mesgqueue_integrated.cpp",
+            "events": "events_integrated.cpp",
+            "timer": "timer_integrated.cpp",
+            "saving": "pi_integrated.cpp",
+            "recomp": "recomp_integrated.cpp",
+        }
         for key, transform in methods.items():
             with self.subTest(component=key):
                 result = transform(generated[key])
                 self.assertGreater(len(result), 500)
                 self.assertIn("// Experimental ", result)
+                if emit_root:
+                    destination = Path(emit_root) / outputs[key]
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    destination.write_text(result, encoding="utf-8")
                 with self.assertRaisesRegex(ValueError, "already"):
                     transform(result)
 
