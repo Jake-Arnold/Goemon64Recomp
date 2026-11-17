@@ -210,6 +210,11 @@ public:
 #else
         version_string += " [save-finalize-off]";
 #endif
+#ifdef GOEMON_JP_TIMER_PUBLISH_STAGE17_ACTIVE
+        version_string += " [timer-publisher-fence]";
+#else
+        version_string += " [timer-publisher-fence-off]";
+#endif
 #endif
         constructor.Bind("version_number", &version_string);
 
