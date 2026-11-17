@@ -254,16 +254,16 @@ def recomp(src: str) -> str:
         "never release RDRAM on failed integrated shutdown barrier")
 
     src = once(src,
-        '    if (free_failed) {\\n'
-        '        printf("Failed to free rdram\\\\n");\\n'
-        '    }\\n'
-        '    } else {\\n',
-        '    if (free_failed) {\\n'
-        '        printf("Failed to free rdram\\\\n");\\n'
-        '    } else {\\n'
-        '        jp_integrated_rdram_released = true;\\n'
-        '    }\\n'
-        '    } else {\\n',
+        '    if (free_failed) {\n'
+        '        printf("Failed to free rdram\\n");\n'
+        '    }\n'
+        '    } else {\n',
+        '    if (free_failed) {\n'
+        '        printf("Failed to free rdram\\n");\n'
+        '    } else {\n'
+        '        jp_integrated_rdram_released = true;\n'
+        '    }\n'
+        '    } else {\n',
         "record successful verified RDRAM unmap for restart")
 
     # The original pinned file ends with recomp::start(), and Stage17 only
