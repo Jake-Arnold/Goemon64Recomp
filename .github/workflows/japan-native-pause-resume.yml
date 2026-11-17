@@ -1,9 +1,8 @@
 name: Japanese F6 native pause/resume contracts
 
 on:
-  push:
-    branches:
-      - feature/japan-native-f6-pause-resume
+  # PR validation is authoritative. Running both push and PR workflows
+  # for the same commit produced duplicate noisy checks on the same branch.
   pull_request:
     paths:
       - 'tools/japan_port/**'
