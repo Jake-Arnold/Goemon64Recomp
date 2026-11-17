@@ -169,8 +169,7 @@ bool sdl_event_filter(void* userdata, SDL_Event* event) {
                 keyevent->keysym.scancode == SDL_SCANCODE_F6) {
                 const bool paused = ultramodern::jp_guest_is_paused();
                 if (paused || (ultramodern::is_game_started() &&
-                               !recomp::all_input_disabled() &&
-                               !recomp::game_input_disabled())) {
+                               !recomp::all_input_disabled())) {
                     (void)ultramodern::jp_set_guest_paused(!paused);
                     recomp::jp_set_audio_paused(!paused);
                     return false; // Host hotkey is not a guest/UI key.
