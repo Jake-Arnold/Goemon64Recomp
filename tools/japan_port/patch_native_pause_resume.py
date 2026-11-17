@@ -145,7 +145,7 @@ def messages(src: str) -> str:
     src = once(src,
         '#include "ultramodern/ultramodern.hpp"\n',
         '#include "ultramodern/ultramodern.hpp"\n'
-        '#include "jp_pause_controller.hpp"\n',
+        '#include "jp_pause_controller.hpp"\n'
         'extern std::atomic_bool exited;\n',
         "external N64 message pause include")
     src = once(src,
