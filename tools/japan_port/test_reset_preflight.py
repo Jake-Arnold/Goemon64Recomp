@@ -65,7 +65,7 @@ class ResetInputPreflightTests(unittest.TestCase):
 
     def test_version_and_build_fingerprint(self) -> None:
         text = source("src/main/main.cpp")
-        self.assertIn('#ifdef GOEMON_JAPAN_NATIVE\nconst std::string version_string = "0.2.22-dev";', text)
+        self.assertIn('#ifdef GOEMON_JAPAN_NATIVE\nconst std::string version_string = "0.2.23-dev";', text)
         self.assertIn('const std::string version_string = "0.2.3-dev";', text)
         self.assertIn('GOEMON_JP_BUILD_COMMIT', text)
 
