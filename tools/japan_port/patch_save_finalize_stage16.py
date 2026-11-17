@@ -44,11 +44,11 @@ EXIT_FINALIZE = r"""    // Stage16: normal app EXIT ONLY. Guest spawning has fin
         } catch (const std::exception& e) {
             // Preserve failed-closed proof instead of unwinding shutdown.
             std::fprintf(stderr,
-                "[Goemon JP save finalize stage16] final flush error: %s\\n",
+                "[Goemon JP save finalize stage16] final flush error: %s\n",
                 e.what());
         } catch (...) {
             std::fprintf(stderr,
-                "[Goemon JP save finalize stage16] final flush unknown error.\\n");
+                "[Goemon JP save finalize stage16] final flush unknown error.\n");
         }
     }
     const auto jp_save_exit_completed =
