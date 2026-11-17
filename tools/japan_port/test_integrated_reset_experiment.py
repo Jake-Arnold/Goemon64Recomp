@@ -115,6 +115,66 @@ class IntegratedResetTests(unittest.TestCase):
         self.assertIn("reason=unproven-shutdown-or-memory-release", self.script)
         self.assertIn("result=ABORT", self.script)
 
+    def test_japanese_rom_decompression_is_restored_on_every_boot(self):
+        # The upstream runtime mutates has_compressed_code=false after the
+        # first load. A second game generation must not load the original
+        # *compressed* stored ROM without decompressing it again.
+        pinned = (ROOT / "lib/N64ModernRuntime/librecomp/src/recomp.cpp")
+        if not pinned.is_file():
+            self.skipTest("Pinned runtime not checked out")
+        original = pinned.read_text(encoding="utf-8")
+        self.assertIn("find_it->second.has_compressed_code = false;", original)
+        self.assertIn("if (find_it->second.has_compressed_code) {", original)
+        self.assertIn(
+            "restore JP decompression across repeated guest generations",
+            self.script)
+        self.assertIn("game_id == u8\"mnsg.jp\"", self.script)
+        self.assertIn("find_it->second.has_compressed_code = true;", self.script)
+
+        import importlib.util
+        path = ROOT / "tools/japan_port/patch_integrated_reset_experiment.py"
+        spec = importlib.util.spec_from_file_location(
+            "jp_reset_rom_replay_test", path)
+        assert spec and spec.loader
+        patch = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(patch)
+        # Compose the real pinned recomp through every predecessor stage.
+        stage7_spec = importlib.util.spec_from_file_location(
+            "jp_reset_stage7_rom_test",
+            path.with_name("patch_native_boot_save_audio_stage7.py"))
+        stage12_spec = importlib.util.spec_from_file_location(
+            "jp_reset_stage12_rom_test",
+            path.with_name("patch_exit_barrier_stage12.py"))
+        stage17_spec = importlib.util.spec_from_file_location(
+            "jp_reset_stage17_rom_test",
+            path.with_name("patch_timer_producer_fence_stage17.py"))
+        assert stage7_spec and stage7_spec.loader
+        assert stage12_spec and stage12_spec.loader
+        assert stage17_spec and stage17_spec.loader
+        stage7 = importlib.util.module_from_spec(stage7_spec)
+        stage12 = importlib.util.module_from_spec(stage12_spec)
+        stage17 = importlib.util.module_from_spec(stage17_spec)
+        stage7_spec.loader.exec_module(stage7)
+        stage12_spec.loader.exec_module(stage12)
+        stage17_spec.loader.exec_module(stage17)
+        generated = patch.recomp(
+            stage17.instrument_recomp_after_stage12(
+                stage12.instrument_recomp_stage7(
+                    stage7.instrument_recomp(original))))
+        function = generated.split(
+            "bool recomp::load_stored_rom(std::u8string& game_id) {", 1)[1].split(
+                "const recomp::Version& recomp::get_project_version()", 1)[0]
+        self.assertLess(
+            function.index("find_it->second.has_compressed_code = true;"),
+            function.index("if (find_it->second.has_compressed_code) {"))
+        self.assertLess(
+            function.index("if (game_id == u8\"mnsg.jp\""),
+            function.index("find_it->second.has_compressed_code = true;"))
+        self.assertIn("find_it->second.has_compressed_code = false;", function)
+        self.assertIn("restoring compressed JP ROM", function)
+        # USA has no such condition; the only forced restoration is mnsg.jp.
+        self.assertNotIn('game_id == u8"mnsg.us"', function)
+
     def test_rearms_guest_timer_events_and_saving(self):
         for token in ("jp_rearm_guest_after_verified_exit",
                       "jp_rearm_timer_after_verified_exit",
