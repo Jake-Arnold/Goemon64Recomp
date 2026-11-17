@@ -195,6 +195,11 @@ public:
 #else
         version_string += " [generation-admission-off]";
 #endif
+#ifdef GOEMON_JP_CONFIG_FENCE_STAGE14_ACTIVE
+        version_string += " [config-publisher-fence]";
+#else
+        version_string += " [config-publisher-fence-off]";
+#endif
 #endif
         constructor.Bind("version_number", &version_string);
 
