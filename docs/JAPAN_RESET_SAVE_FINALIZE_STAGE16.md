@@ -125,7 +125,7 @@ barrier line. The Stage15 SDL device close remains last.
 ## Verification scope
 
 The user's Stage15 full Ubuntu normal-exit pass is **confirmed**.
-Stage16 has **14 new ROM-free regression checks authored**; inherited
+Stage16 has **15 new ROM-free regression checks authored**; inherited
 Stage1–15 version assertions have been updated. Native Stage16
 CMake compilation, tests against the checked-out pinned runtime and
 real-game save durability **have not yet been verified**; draft only.
