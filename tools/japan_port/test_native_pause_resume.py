@@ -52,23 +52,37 @@ class NativePauseTests(unittest.TestCase):
             self.assertIn(f'("{old}", "{new}"', self.src)
         self.assertIn("JP_PAUSE_RESULT EQUAL 0", self.cmake)
 
-    def test_f6_keyboard_edge_toggle_and_no_rdram_reset(self):
-        self.assertIn("SDL_SCANCODE_F6", self.input)
-        self.assertIn("static bool jp_pause_was_held = true;", self.input)
-        self.assertIn("!jp_pause_was_held", self.input)
-        self.assertIn("jp_set_guest_paused(paused)", self.input)
-        self.assertIn("jp_set_audio_paused(paused)", self.input)
-        section = self.input.split("// F6 is a host-only emulator-style toggle.", 1)[1].split(
-            "#endif", 1)[0]
-        for forbidden in ("munmap(", "memset(", "jp_request_integrated_reset(",
-                          "quit(", "SDL_DestroyWindow("):
+    def test_f6_is_dispatched_on_host_sdl_pump_not_vi_poll(self):
+        # A paused VI worker stops poll_inputs(). The host SDL event pump
+        # must still process F6 release/repress without guest dispatch.
+        section = self.input.split("bool sdl_event_filter(", 1)[1].split(
+            "void recomp::handle_events()", 1)[0]
+        self.assertIn("SDL_EventType::SDL_KEYDOWN", section)
+        self.assertIn("keyevent->keysym.scancode == SDL_SCANCODE_F6", section)
+        self.assertIn("!keyevent->repeat", section)
+        self.assertIn("jp_guest_is_paused()", section)
+        self.assertIn("jp_set_guest_paused(!paused)", section)
+        self.assertIn("jp_set_audio_paused(!paused)", section)
+        self.assertIn("if (paused || (ultramodern::is_game_started()", section)
+        self.assertIn("return false; // Host hotkey is not a guest/UI key.", section)
+        polling = self.input.split("void recomp::poll_inputs() {", 1)[1]
+        self.assertNotIn("jp_pause_was_held", polling)
+        self.assertNotIn("SDL_SCANCODE_F6", polling)
+        for forbidden in ("munmap(", "memset(", "SDL_DestroyWindow(",
+                          "ultramodern::quit()"):
             self.assertNotIn(forbidden, section)
 
-    def test_f8_unpauses_before_reset(self):
-        section = self.input.split("// F8 during F6-pause", 1)[1].split(
-            "recomp::jp_request_integrated_reset()", 1)[0]
-        self.assertIn("jp_set_guest_paused(false)", section)
-        self.assertIn("jp_set_audio_paused(false)", section)
+    def test_f8_while_paused_uses_host_event_pump(self):
+        section = self.input.split("bool sdl_event_filter(", 1)[1].split(
+            "void recomp::handle_events()", 1)[0]
+        paused_reset = section.split(
+            "keyevent->keysym.scancode == SDL_SCANCODE_F8", 1)[1]
+        self.assertIn("ultramodern::jp_guest_is_paused()", paused_reset)
+        self.assertIn("jp_set_guest_paused(false)", paused_reset)
+        self.assertIn("jp_set_audio_paused(false)", paused_reset)
+        self.assertIn("jp_request_integrated_reset()", paused_reset)
+        # Existing non-paused F8 controller/keyboard path remains active.
+        self.assertIn("GameInput::RESET_GAME", self.input)
 
     def test_audio_queue_and_window_are_preserved(self):
         section = self.front.split("void jp_set_audio_paused(bool pause)", 1)[1].split(
