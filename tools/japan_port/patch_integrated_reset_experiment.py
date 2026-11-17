@@ -195,6 +195,13 @@ def events(src: str) -> str:
         "    void jp_report_config_action_producer_gate();\n"
         "    bool jp_rearm_events_after_verified_exit(std::uint64_t);\n",
         "events rearm declaration")
+    // On the new generation, VI may start before the game loads osViSetMode.
+    // Prime its next-mode pointer with the existing valid dummy mode first.
+    src = once(src,
+        "    events_context.rdram = rdram;\n",
+        "    events_context.rdram = rdram;\n"
+        "    set_dummy_vi(false);\n",
+        "seed VI mode before starting new native VI worker")
     src = once(src,
         "void ultramodern::jp_report_config_action_producer_gate() {\n",
         EVENT_REARM + "void ultramodern::jp_report_config_action_producer_gate() {\n",
