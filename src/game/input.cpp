@@ -55,6 +55,13 @@ namespace ultramodern { void jp_report_timer_epoch_stage18(); }
 #ifdef GOEMON_JP_EXPERIMENTAL_RESET_BACKEND_ACTIVE
 namespace recomp { bool jp_request_integrated_reset(); }
 #endif
+#ifdef GOEMON_JP_NATIVE_F6_PAUSE_ACTIVE
+namespace ultramodern {
+    bool jp_set_guest_paused(bool);
+    bool jp_guest_is_paused();
+}
+namespace recomp { void jp_set_audio_paused(bool); }
+#endif
 
 constexpr float axis_threshold = 0.5f;
 
@@ -566,6 +573,22 @@ void recomp::poll_inputs() {
     }
     #endif
 
+#ifdef GOEMON_JP_NATIVE_F6_PAUSE_ACTIVE
+    // F6 is a host-only emulator-style toggle. No guest RAM writes, no
+    // game entrypoint replay, no process or SDL window lifecycle change.
+    // Never block the SDL event loop waiting for guest workers here.
+    static bool jp_pause_was_held = true;
+    const bool jp_pause_held = InputState.keys != nullptr &&
+        InputState.keys[SDL_SCANCODE_F6] != 0;
+    if (jp_pause_held && !jp_pause_was_held &&
+        ultramodern::is_game_started() && !recomp::all_input_disabled()) {
+        const bool paused = !ultramodern::jp_guest_is_paused();
+        (void)ultramodern::jp_set_guest_paused(paused);
+        recomp::jp_set_audio_paused(paused);
+    }
+    jp_pause_was_held = jp_pause_held;
+#endif
+
 #if defined(GOEMON_JAPAN_NATIVE)
     // Input plumbing only: the pinned runtime cannot safely reboot its
     // guest OSThreads and RDRAM yet. Do not exit or restart the process.
@@ -582,6 +605,14 @@ void recomp::poll_inputs() {
     if (reset_held && !reset_was_held && ultramodern::is_game_started() &&
         !recomp::game_input_disabled() && !recomp::all_input_disabled()) {
 #ifdef GOEMON_JP_EXPERIMENTAL_RESET_BACKEND_ACTIVE
+#ifdef GOEMON_JP_NATIVE_F6_PAUSE_ACTIVE
+        // F8 during F6-pause must release guest/native workers before
+        // entering the existing joined shutdown and RDRAM replacement.
+        if (ultramodern::jp_guest_is_paused()) {
+            (void)ultramodern::jp_set_guest_paused(false);
+            recomp::jp_set_audio_paused(false);
+        }
+#endif
         // Experimental: request a verified per-generation teardown and
         // re-entry. Input never touches worker queues or RDRAM itself.
         if (recomp::jp_request_integrated_reset()) {
