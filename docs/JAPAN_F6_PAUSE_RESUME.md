@@ -24,6 +24,45 @@ It requires `GOEMON_JP_INTEGRATED_F8_RESET_EXPERIMENTAL=ON`
 and the existing JP Stage1–18 prerequisites. USA does not install
 the F6 handler; ROMs and the pinned N64ModernRuntime stay unchanged.
 
+## First Ubuntu pause test and deadlock fix — 17 November 2026
+
+The first native test showed `[Goemon JP pause] state=PAUSED
+generation=2 ticks=417972750 guest_time=417972750`. Gameplay
+froze correctly, but pressing F6 again did not resume it.
+
+**Cause:** the initial F6 toggle was inside `recomp::poll_inputs()`.
+That callback depends on guest VI scheduling and stops being invoked
+once the cooperative pause parks the VI worker. The host still has an
+independent SDL event pump in `recomp::start()`, but the second F6
+could not reach `poll_inputs()`. This was a **control-path
+deadlock**, not a timer/worker join failure.
+
+**Fix:** F6 keydown edges now toggle pause directly from
+`sdl_event_filter()`, which is serviced by the SDL event loop
+independently of guest VI and OSThread dispatch. The old
+`poll_inputs()` F6 handler is removed. Held/repeated F6 keydown
+events are ignored; unpause remains available even if game input
+is disabled while paused. F8 pressed while paused also uses the
+host SDL event pump, releases the pause and audio gates, and then
+requests the existing integrated reset. Normal gameplay F8
+bindings continue through their original input path.
+
+**Validation:** The updated host/CI contracts explicitly prohibit
+`SDL_SCANCODE_F6` keyboard polling for pause, require the direct
+SDL keydown path, and verify a paused F8 reset path. This
+does not establish live Ubuntu resume success until a new F6
+→ resume → repeat gameplay observation.
+
+**CI maintenance:** The legacy metadata suite now fetches the
+pinned runtime, updates the JP version expectation and tests all
+five mandatory ROM hook validators using synthetic fixtures.
+The Stage16 snapshot test distinguishes the local epoch variable
+declaration from the *actual locked assignment*. The heavyweight
+USA cross-platform matrix runs on `dev`/`main` integration PRs,
+rather than every experimental JP feature-on-feature PR. The
+dedicated F6 workflow runs once per PR revision, not once each
+for push and PR. No old failed history is erased.
+
 ## What is frozen
 
 - N64 counter and guest time share a synchronized paused clock. While
