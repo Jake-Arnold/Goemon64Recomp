@@ -4,8 +4,12 @@ on:
     branches:
       - dev
       - actions
+  # Full USA cross-platform/release matrix is required for PRs entering
+  # the integration branches, not for JP feature-on-feature draft PRs.
+  # Focused JP runtime CI runs separately on the experimental branches.
   pull_request:
-    types: [opened, synchronize]
+    branches: [dev, main]
+    types: [opened, synchronize, reopened]
 jobs:
   build:
     if: github.event_name == 'push' || github.repository == github.event.pull_request.head.repo.full_name
