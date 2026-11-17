@@ -506,6 +506,10 @@ if(GOEMON_BUILD_JAPAN)
     option(GOEMON_JP_TIMER_PUBLISH_STAGE17 "Enable timer producer fence and RDRAM guard on PC exit" OFF)
     option(GOEMON_JP_TIMER_EPOCH_STAGE18 "Enable synchronized JP timer clock with test-only epoch rebase" OFF)
     option(GOEMON_JP_INTEGRATED_F8_RESET_EXPERIMENTAL "Experimental same-process F8 reset (may be unstable; disposable saves only)" OFF)
+    option(GOEMON_JP_NATIVE_F6_PAUSE "F6 guest-time/VI/scheduler/timer/audio cooperative pause and resume (experimental)" OFF)
+    if(GOEMON_JP_NATIVE_F6_PAUSE AND NOT GOEMON_JP_INTEGRATED_F8_RESET_EXPERIMENTAL)
+        message(FATAL_ERROR "GOEMON_JP_NATIVE_F6_PAUSE requires GOEMON_JP_INTEGRATED_F8_RESET_EXPERIMENTAL=ON")
+    endif()
     if(GOEMON_JP_INTEGRATED_F8_RESET_EXPERIMENTAL AND NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
         message(FATAL_ERROR "Experimental integrated reset currently supports Linux only")
     endif()
@@ -1023,6 +1027,49 @@ if(GOEMON_BUILD_JAPAN)
         target_include_directories(ultramodern PRIVATE "${CMAKE_SOURCE_DIR}/src/game")
     endif()
 
+    # Optional F6 pause: compose the already verified integrated reset
+    # sources. Do not modify the pinned modern runtime or USA source.
+    if(GOEMON_JP_NATIVE_F6_PAUSE)
+        set(JP_PAUSE_SCRIPT "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_native_pause_resume.py")
+        set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+            "${JP_PAUSE_SCRIPT}" "${CMAKE_SOURCE_DIR}/src/game/jp_pause_controller.hpp"
+            "${CMAKE_SOURCE_DIR}/src/game/jp_timer_epoch_clock.hpp")
+        execute_process(
+            COMMAND "${Python3_EXECUTABLE}" "${JP_PAUSE_SCRIPT}"
+                --generated-dir "${JP_TIMER_GENERATED_DIR}"
+            RESULT_VARIABLE JP_PAUSE_RESULT
+            OUTPUT_VARIABLE JP_PAUSE_OUTPUT
+            ERROR_VARIABLE JP_PAUSE_ERROR)
+        if(NOT JP_PAUSE_RESULT EQUAL 0)
+            message(FATAL_ERROR
+                "JP F6 pause source generation failed:\n${JP_PAUSE_OUTPUT}\n${JP_PAUSE_ERROR}")
+        endif()
+        message(STATUS "${JP_PAUSE_OUTPUT}")
+        foreach(JP_PAUSE_SOURCE_PAIR IN ITEMS
+            "ultramodern|timer_integrated.cpp|timer_pause.cpp"
+            "ultramodern|events_integrated.cpp|events_pause.cpp"
+            "ultramodern|mesgqueue_integrated.cpp|mesgqueue_pause.cpp"
+            "ultramodern|threads_reset.cpp|threads_pause.cpp"
+            "librecomp|recomp_integrated.cpp|recomp_pause.cpp")
+            string(REPLACE "|" ";" JP_PAUSE_PAIR "${JP_PAUSE_SOURCE_PAIR}")
+            list(GET JP_PAUSE_PAIR 0 JP_PAUSE_TARGET)
+            list(GET JP_PAUSE_PAIR 1 JP_PAUSE_OLD)
+            list(GET JP_PAUSE_PAIR 2 JP_PAUSE_NEW)
+            get_target_property(JP_PAUSE_TARGET_SOURCES "${JP_PAUSE_TARGET}" SOURCES)
+            list(FIND JP_PAUSE_TARGET_SOURCES
+                "${JP_TIMER_GENERATED_DIR}/${JP_PAUSE_OLD}" JP_PAUSE_OLD_INDEX)
+            if(JP_PAUSE_OLD_INDEX EQUAL -1)
+                message(FATAL_ERROR "F6 pause needs existing ${JP_PAUSE_OLD} in ${JP_PAUSE_TARGET}")
+            endif()
+            list(REMOVE_ITEM JP_PAUSE_TARGET_SOURCES
+                "${JP_TIMER_GENERATED_DIR}/${JP_PAUSE_OLD}")
+            set_property(TARGET "${JP_PAUSE_TARGET}" PROPERTY SOURCES
+                ${JP_PAUSE_TARGET_SOURCES})
+            target_sources("${JP_PAUSE_TARGET}" PRIVATE
+                "${JP_TIMER_GENERATED_DIR}/${JP_PAUSE_NEW}")
+        endforeach()
+    endif()
+
     # Reuse the existing frontend sources and shared shader/icon build rules.
     get_target_property(JP_SOURCES Goemon64Recompiled SOURCES)
     list(REMOVE_ITEM JP_SOURCES
@@ -1102,6 +1149,9 @@ if(GOEMON_BUILD_JAPAN)
     endif()
     if(GOEMON_JP_INTEGRATED_F8_RESET_EXPERIMENTAL)
         target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JP_EXPERIMENTAL_RESET_BACKEND_ACTIVE)
+    endif()
+    if(GOEMON_JP_NATIVE_F6_PAUSE)
+        target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JP_NATIVE_F6_PAUSE_ACTIVE)
     endif()
     # Regenerate the build-commit identifier on every JP build. The script
     # writes only when content changes; incremental compilation stays fast.
