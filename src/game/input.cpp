@@ -46,6 +46,9 @@ namespace ultramodern { void jp_report_live_generation_preflight(); }
 #ifdef GOEMON_JP_CONFIG_FENCE_STAGE14_ACTIVE
 namespace ultramodern { void jp_report_config_action_producer_gate(); }
 #endif
+#ifdef GOEMON_JP_TIMER_PUBLISH_STAGE17_ACTIVE
+namespace ultramodern { void jp_report_timer_producer_stage17(); }
+#endif
 
 constexpr float axis_threshold = 0.5f;
 
@@ -625,6 +628,10 @@ void recomp::poll_inputs() {
 #ifdef GOEMON_JP_CONFIG_FENCE_STAGE14_ACTIVE
         // Read-only. Producer gate may close only at normal PC exit.
         ultramodern::jp_report_config_action_producer_gate();
+#endif
+#ifdef GOEMON_JP_TIMER_PUBLISH_STAGE17_ACTIVE
+        // Read-only live observation. Do not close timer producer admission.
+        ultramodern::jp_report_timer_producer_stage17();
 #endif
     }
     reset_was_held = reset_held;
