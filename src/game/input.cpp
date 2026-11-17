@@ -10,6 +10,9 @@
 #include "SDL.h"
 #include "promptfont.h"
 #include "GamepadMotion.hpp"
+#ifdef GOEMON_JP_GENERATION_STAGE13_ACTIVE
+#include "jp_generation_coordinator.hpp"
+#endif
 
 #ifdef GOEMON_JP_THREAD_STAGE2_ACTIVE
 namespace ultramodern { void report_guest_thread_reset_blockers(); }
@@ -601,6 +604,20 @@ void recomp::poll_inputs() {
 #ifdef GOEMON_JP_LIVE_STAGE11_ACTIVE
         // Live read-only snapshot. NO stop flag, queue drain, reset or exit.
         ultramodern::jp_report_live_generation_preflight();
+#endif
+#ifdef GOEMON_JP_GENERATION_STAGE13_ACTIVE
+        // Admission-only: record and reject this F8 request. No pending
+        // request is retained and no generation state is changed.
+        const auto jp_request = goemon_jp::reset::coordinator().record_unarmed_request();
+        std::fprintf(stderr,
+            "[Goemon JP generation stage13] generation=%llu request=%llu "
+            "phase=%u admitted=0 backend=0 verified_fences=0x000 "
+            "required_fences=0x%03X reason=backend-not-installed; "
+            "no guest stop, no RDRAM reset.\\n",
+            static_cast<unsigned long long>(jp_request.generation),
+            static_cast<unsigned long long>(jp_request.ticket),
+            static_cast<unsigned>(jp_request.phase),
+            static_cast<unsigned>(goemon_jp::reset::kFutureRequiredFenceMask));
 #endif
     }
     reset_was_held = reset_held;
