@@ -504,6 +504,10 @@ if(GOEMON_BUILD_JAPAN)
     option(GOEMON_JP_SDL_AUDIO_STAGE15 "Enable SDL audio callback fence and device close on PC exit" OFF)
     option(GOEMON_JP_SAVE_STAGE16 "Enable pending save finalization after worker join on PC exit" OFF)
     option(GOEMON_JP_TIMER_PUBLISH_STAGE17 "Enable timer producer fence and RDRAM guard on PC exit" OFF)
+    option(GOEMON_JP_TIMER_EPOCH_STAGE18 "Enable synchronized JP timer clock with test-only epoch rebase" OFF)
+    if(GOEMON_JP_TIMER_EPOCH_STAGE18 AND NOT GOEMON_JP_TIMER_PUBLISH_STAGE17)
+        message(FATAL_ERROR "GOEMON_JP_TIMER_EPOCH_STAGE18 requires GOEMON_JP_TIMER_PUBLISH_STAGE17=ON")
+    endif()
     if(GOEMON_JP_TIMER_PUBLISH_STAGE17 AND NOT GOEMON_JP_SAVE_STAGE16)
         message(FATAL_ERROR "GOEMON_JP_TIMER_PUBLISH_STAGE17 requires GOEMON_JP_SAVE_STAGE16=ON")
     endif()
@@ -921,6 +925,37 @@ if(GOEMON_BUILD_JAPAN)
         set_property(TARGET librecomp PROPERTY SOURCES ${JP_STAGE17_RECOMP_SOURCES})
         target_sources(librecomp PRIVATE "${JP_TIMER_GENERATED_DIR}/recomp_stage17.cpp")
     endif()
+    # Stage18 uses the actual already-generated Stage17 source.
+    # It synchronizes the timebase but does NOT call generation rearm.
+    if(GOEMON_JP_TIMER_EPOCH_STAGE18)
+        set(JP_STAGE18_SCRIPT "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_timer_epoch_stage18.py")
+        set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+            "${JP_STAGE18_SCRIPT}"
+            "${CMAKE_SOURCE_DIR}/src/game/jp_timer_epoch_clock.hpp")
+        execute_process(
+            COMMAND "${Python3_EXECUTABLE}" "${JP_STAGE18_SCRIPT}"
+                --stage17-source "${JP_TIMER_GENERATED_DIR}/timer_stage17.cpp"
+                --output "${JP_TIMER_GENERATED_DIR}/timer_stage18.cpp"
+            RESULT_VARIABLE JP_STAGE18_RESULT
+            OUTPUT_VARIABLE JP_STAGE18_OUTPUT
+            ERROR_VARIABLE JP_STAGE18_ERROR)
+        if(NOT JP_STAGE18_RESULT EQUAL 0)
+            message(FATAL_ERROR
+                "JP Stage18 timer clock generation failed:\n"
+                "${JP_STAGE18_OUTPUT}\n${JP_STAGE18_ERROR}")
+        endif()
+        message(STATUS "${JP_STAGE18_OUTPUT}")
+        get_target_property(JP_STAGE18_TIMER_SOURCES ultramodern SOURCES)
+        list(FIND JP_STAGE18_TIMER_SOURCES
+            "${JP_TIMER_GENERATED_DIR}/timer_stage17.cpp" JP_STAGE18_OLD_TIMER)
+        if(JP_STAGE18_OLD_TIMER EQUAL -1)
+            message(FATAL_ERROR "Stage18 requires generated Stage17 timer source")
+        endif()
+        list(REMOVE_ITEM JP_STAGE18_TIMER_SOURCES
+            "${JP_TIMER_GENERATED_DIR}/timer_stage17.cpp")
+        set_property(TARGET ultramodern PROPERTY SOURCES ${JP_STAGE18_TIMER_SOURCES})
+        target_sources(ultramodern PRIVATE "${JP_TIMER_GENERATED_DIR}/timer_stage18.cpp")
+    endif()
     # Reuse the existing frontend sources and shared shader/icon build rules.
     get_target_property(JP_SOURCES Goemon64Recompiled SOURCES)
     list(REMOVE_ITEM JP_SOURCES
@@ -986,6 +1021,9 @@ if(GOEMON_BUILD_JAPAN)
     endif()
     if(GOEMON_JP_TIMER_PUBLISH_STAGE17)
         target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JP_TIMER_PUBLISH_STAGE17_ACTIVE)
+    endif()
+    if(GOEMON_JP_TIMER_EPOCH_STAGE18)
+        target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JP_TIMER_EPOCH_STAGE18_ACTIVE)
     endif()
     # Regenerate the build-commit identifier on every JP build. The script
     # writes only when content changes; incremental compilation stays fast.
