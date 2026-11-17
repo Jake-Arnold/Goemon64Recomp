@@ -119,8 +119,10 @@ default OFF so a clean checkout does not enable this without explicit opt-in.
   `known_joined=1` and Stage17 `timer_safe=1`.
 - The external queue must report `external_queue_drained=1`.
 - Next, `[Goemon JP integrated reset] generation=2 result=REARMED`,
-  `SDL window reused=...`, and the standard recomp-heap initialization
-  line should appear **again**. The original SDL window must not be
+  `window=preserved next_boot=1`, and the standard recomp-heap initialization
+  line should appear **again**. The existing `recomp::start()` instance
+  retains its window handle outside the guest-generation loop, so
+  `create_window()` is not normally called a second time. The original SDL window must not be
   destroyed and the PID must remain unchanged.
 - Gameplay should return to the title screen with working graphics,
   controls and audio. Press/release F8 **again**, repeating generation
