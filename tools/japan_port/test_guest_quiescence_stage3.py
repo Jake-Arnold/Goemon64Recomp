@@ -138,7 +138,7 @@ class GuestStopStage3Tests(unittest.TestCase):
 
     def test_build_version_marker(self) -> None:
         main = (ROOT / "src/main/main.cpp").read_text()
-        self.assertIn('const std::string version_string = "0.2.22-dev"', main)
+        self.assertIn('const std::string version_string = "0.2.23-dev"', main)
         self.assertIn('const std::string version_string = "0.2.3-dev"', main)
         self.assertIn('jp_guest_build_mode = " [guest-prep]"', main)
         ui = (ROOT / "src/ui/ui_launcher.cpp").read_text()

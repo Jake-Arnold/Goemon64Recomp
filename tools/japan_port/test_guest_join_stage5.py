@@ -175,7 +175,7 @@ class GuestJoinStage5Tests(unittest.TestCase):
 
     def test_version_markers_are_isolated_from_usa(self) -> None:
         main = (ROOT / "src/main/main.cpp").read_text()
-        self.assertIn('const std::string version_string = "0.2.22-dev"', main)
+        self.assertIn('const std::string version_string = "0.2.23-dev"', main)
         self.assertIn('const std::string version_string = "0.2.3-dev"', main)
         self.assertIn('jp_join_build_mode = " [join-prep]"', main)
         ui = (ROOT / "src/ui/ui_launcher.cpp").read_text()
