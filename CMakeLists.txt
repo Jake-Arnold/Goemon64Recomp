@@ -498,6 +498,10 @@ if(GOEMON_BUILD_JAPAN)
     option(GOEMON_JP_EXIT_STAGE9 "Enable bounded guest OSThread shutdown only on PC exit" OFF)
     option(GOEMON_JP_ACTION_STAGE10 "Enable PC-exit-only residual action queue drain" OFF)
     option(GOEMON_JP_LIVE_STAGE11 "Enable read-only live-generation producer preflight on F8" OFF)
+    option(GOEMON_JP_BARRIER_STAGE12 "Enable post-join cross-subsystem exit barrier census (not F8)" OFF)
+    if(GOEMON_JP_BARRIER_STAGE12 AND NOT GOEMON_JP_LIVE_STAGE11)
+        message(FATAL_ERROR "GOEMON_JP_BARRIER_STAGE12 requires GOEMON_JP_LIVE_STAGE11=ON")
+    endif()
     if(GOEMON_JP_LIVE_STAGE11 AND NOT GOEMON_JP_ACTION_STAGE10)
         message(FATAL_ERROR "GOEMON_JP_LIVE_STAGE11 requires GOEMON_JP_ACTION_STAGE10=ON")
     endif()
@@ -773,6 +777,38 @@ if(GOEMON_BUILD_JAPAN)
         set_property(TARGET librecomp PROPERTY SOURCES ${JP_STAGE10_RECOMP_SOURCES})
         target_sources(librecomp PRIVATE "${JP_TIMER_GENERATED_DIR}/recomp_stage10.cpp")
     endif()
+    # Stage12 observes all previously audited worker categories after save
+    # join on PC exit only. Stage10's own generated recomp copy is replaced,
+    # but its guest and event instrumentation remains active via Stage11.
+    if(GOEMON_JP_BARRIER_STAGE12)
+        set(JP_STAGE12_SCRIPT "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_exit_barrier_stage12.py")
+        set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+            "${JP_STAGE12_SCRIPT}")
+        execute_process(
+            COMMAND "${Python3_EXECUTABLE}" "${JP_STAGE12_SCRIPT}"
+                --mode recomp
+                --source "${JP_TIMER_GENERATED_DIR}/recomp_stage7.cpp"
+                --output "${JP_TIMER_GENERATED_DIR}/recomp_stage12.cpp"
+            RESULT_VARIABLE JP_STAGE12_RESULT
+            OUTPUT_VARIABLE JP_STAGE12_OUTPUT
+            ERROR_VARIABLE JP_STAGE12_ERROR)
+        if(NOT JP_STAGE12_RESULT EQUAL 0)
+            message(FATAL_ERROR
+                "JP stage12 exit barrier generation failed:\\n"
+                "${JP_STAGE12_OUTPUT}\\n${JP_STAGE12_ERROR}")
+        endif()
+        message(STATUS "${JP_STAGE12_OUTPUT}")
+        get_target_property(JP_STAGE12_RECOMP_SOURCES librecomp SOURCES)
+        list(FIND JP_STAGE12_RECOMP_SOURCES
+            "${JP_TIMER_GENERATED_DIR}/recomp_stage10.cpp" JP_STAGE12_OLD_RECOMP)
+        if(JP_STAGE12_OLD_RECOMP EQUAL -1)
+            message(FATAL_ERROR "Stage12 requires generated stage10 recomp source")
+        endif()
+        list(REMOVE_ITEM JP_STAGE12_RECOMP_SOURCES
+            "${JP_TIMER_GENERATED_DIR}/recomp_stage10.cpp")
+        set_property(TARGET librecomp PROPERTY SOURCES ${JP_STAGE12_RECOMP_SOURCES})
+        target_sources(librecomp PRIVATE "${JP_TIMER_GENERATED_DIR}/recomp_stage12.cpp")
+    endif()
     # Reuse the existing frontend sources and shared shader/icon build rules.
     get_target_property(JP_SOURCES Goemon64Recompiled SOURCES)
     list(REMOVE_ITEM JP_SOURCES
@@ -820,6 +856,9 @@ if(GOEMON_BUILD_JAPAN)
     endif()
     if(GOEMON_JP_LIVE_STAGE11)
         target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JP_LIVE_STAGE11_ACTIVE)
+    endif()
+    if(GOEMON_JP_BARRIER_STAGE12)
+        target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JP_BARRIER_STAGE12_ACTIVE)
     endif()
     # Regenerate the build-commit identifier on every JP build. The script
     # writes only when content changes; incremental compilation stays fast.
