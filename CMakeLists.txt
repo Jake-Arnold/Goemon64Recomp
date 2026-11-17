@@ -973,6 +973,7 @@ if(GOEMON_BUILD_JAPAN)
         execute_process(
             COMMAND "${Python3_EXECUTABLE}" "${JP_INTEGRATED_SCRIPT}"
                 --generated-dir "${JP_TIMER_GENERATED_DIR}"
+                --runtime-root "${JP_TIMER_RUNTIME_ROOT}"
             RESULT_VARIABLE JP_INTEGRATED_RESULT
             OUTPUT_VARIABLE JP_INTEGRATED_OUTPUT
             ERROR_VARIABLE JP_INTEGRATED_ERROR)
@@ -1000,6 +1001,23 @@ if(GOEMON_BUILD_JAPAN)
             set_property(TARGET "${JP_TARGET}" PROPERTY SOURCES ${JP_SOURCES})
             target_sources("${JP_TARGET}" PRIVATE "${JP_TIMER_GENERATED_DIR}/${JP_NEW_SOURCE}")
         endforeach()
+        # The native scheduler queue is a process-static N64 OSThread
+        # pointer, not part of the cleared guest RDRAM. Replace its
+        # pinned threadqueue.cpp with a generated joined-only clear hook.
+        get_target_property(JP_INTEGRATED_SCHED_SOURCES ultramodern SOURCES)
+        list(FIND JP_INTEGRATED_SCHED_SOURCES
+            "${JP_TIMER_RUNTIME_ROOT}/ultramodern/src/threadqueue.cpp"
+            JP_INTEGRATED_OLD_SCHED)
+        if(JP_INTEGRATED_OLD_SCHED EQUAL -1)
+            message(FATAL_ERROR
+                "Integrated F8 reset requires pinned native threadqueue.cpp")
+        endif()
+        list(REMOVE_ITEM JP_INTEGRATED_SCHED_SOURCES
+            "${JP_TIMER_RUNTIME_ROOT}/ultramodern/src/threadqueue.cpp")
+        set_property(TARGET ultramodern PROPERTY SOURCES
+            ${JP_INTEGRATED_SCHED_SOURCES})
+        target_sources(ultramodern PRIVATE
+            "${JP_TIMER_GENERATED_DIR}/threadqueue_integrated.cpp")
         target_compile_definitions(ultramodern PRIVATE GOEMON_JP_EXPERIMENTAL_RESET_BACKEND_ACTIVE)
         target_compile_definitions(librecomp PRIVATE GOEMON_JP_EXPERIMENTAL_RESET_BACKEND_ACTIVE)
         target_include_directories(ultramodern PRIVATE "${CMAKE_SOURCE_DIR}/src/game")
