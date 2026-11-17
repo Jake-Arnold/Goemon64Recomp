@@ -30,6 +30,21 @@ class IntegratedResetTests(unittest.TestCase):
         self.assertIn('option(GOEMON_JP_INTEGRATED_F8_RESET_EXPERIMENTAL "Experimental same-process F8 reset (may be unstable; disposable saves only)" OFF)', self.cmake)
         self.assertIn("GOEMON_JP_INTEGRATED_F8_RESET_EXPERIMENTAL AND NOT GOEMON_JP_TIMER_EPOCH_STAGE18", self.cmake)
 
+    def test_frontend_macro_is_defined_after_japanese_target_exists(self):
+        # CMake refuses target_compile_definitions for a not-yet-created
+        # executable. This failed an actual Ubuntu configure (17 Nov).
+        creation = self.cmake.index(
+            "add_executable(Goemon64RecompiledJP ${JP_SOURCES})")
+        macro = self.cmake.index(
+            "target_compile_definitions(Goemon64RecompiledJP PRIVATE "
+            "GOEMON_JP_EXPERIMENTAL_RESET_BACKEND_ACTIVE)")
+        self.assertGreater(macro, creation)
+        self.assertIn(
+            "if(GOEMON_JP_INTEGRATED_F8_RESET_EXPERIMENTAL)\n"
+            "        target_compile_definitions(Goemon64RecompiledJP PRIVATE "
+            "GOEMON_JP_EXPERIMENTAL_RESET_BACKEND_ACTIVE)",
+            self.cmake)
+
     def test_six_generated_runtime_owners_together(self):
         for name in ("threads_reset.cpp", "mesgqueue_integrated.cpp", "events_integrated.cpp",
                      "timer_integrated.cpp", "pi_integrated.cpp",
