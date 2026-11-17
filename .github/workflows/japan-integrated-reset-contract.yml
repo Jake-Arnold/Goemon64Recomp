@@ -32,11 +32,11 @@ jobs:
         run: git submodule update --init --recursive lib/N64ModernRuntime
       - name: Compile reset generator Python
         run: python3 -m py_compile tools/japan_port/patch_integrated_reset_experiment.py tools/japan_port/test_integrated_reset_experiment.py
-      - name: Compose all six reset overlays from pinned sources and run double-reset gate unit
+      - name: Compose all seven reset overlays from pinned sources and run double-reset gate unit
         env:
           JP_INTEGRATED_EMIT_DIR: ${{ runner.temp }}/jp-integrated
         run: python3 tools/japan_port/test_integrated_reset_experiment.py -v
-      - name: C++ syntax-check all six generated reset owners
+      - name: C++ syntax-check all seven generated reset owners
         run: |
           set -eu
           ROOT=lib/N64ModernRuntime
@@ -63,7 +63,7 @@ jobs:
             -Isrc/game
             -Iinclude
           )
-          for name in threads_reset.cpp mesgqueue_integrated.cpp events_integrated.cpp timer_integrated.cpp pi_integrated.cpp recomp_integrated.cpp; do
+          for name in threadqueue_integrated.cpp threads_reset.cpp mesgqueue_integrated.cpp events_integrated.cpp timer_integrated.cpp pi_integrated.cpp recomp_integrated.cpp; do
             echo "::group::Checking ${name}"
             g++ "${CXXFLAGS[@]}" "${RUNNER_TEMP}/jp-integrated/${name}"
             echo "::endgroup::"
