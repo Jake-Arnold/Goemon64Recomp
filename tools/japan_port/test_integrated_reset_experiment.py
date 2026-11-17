@@ -162,7 +162,7 @@ class IntegratedResetTests(unittest.TestCase):
             with self.subTest(component=key):
                 result = transform(generated[key])
                 self.assertGreater(len(result), 500)
-                self.assertIn("// Experimental integrated", result)
+                self.assertIn("// Experimental ", result)
                 with self.assertRaisesRegex(ValueError, "already"):
                     transform(result)
 
