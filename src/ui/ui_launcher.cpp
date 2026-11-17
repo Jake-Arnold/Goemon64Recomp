@@ -200,6 +200,11 @@ public:
 #else
         version_string += " [config-publisher-fence-off]";
 #endif
+#ifdef GOEMON_JP_SDL_AUDIO_STAGE15_ACTIVE
+        version_string += " [sdl-audio-exit]";
+#else
+        version_string += " [sdl-audio-exit-off]";
+#endif
 #endif
         constructor.Bind("version_number", &version_string);
 
