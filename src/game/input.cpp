@@ -43,6 +43,9 @@ void jp_report_sdl_audio_queue();
 #ifdef GOEMON_JP_LIVE_STAGE11_ACTIVE
 namespace ultramodern { void jp_report_live_generation_preflight(); }
 #endif
+#ifdef GOEMON_JP_CONFIG_FENCE_STAGE14_ACTIVE
+namespace ultramodern { void jp_report_config_action_producer_gate(); }
+#endif
 
 constexpr float axis_threshold = 0.5f;
 
@@ -618,6 +621,10 @@ void recomp::poll_inputs() {
             static_cast<unsigned long long>(jp_request.ticket),
             static_cast<unsigned>(jp_request.phase),
             static_cast<unsigned>(goemon_jp::reset::kFutureRequiredFenceMask));
+#endif
+#ifdef GOEMON_JP_CONFIG_FENCE_STAGE14_ACTIVE
+        // Read-only. Producer gate may close only at normal PC exit.
+        ultramodern::jp_report_config_action_producer_gate();
 #endif
     }
     reset_was_held = reset_held;
