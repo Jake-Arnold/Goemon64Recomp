@@ -153,8 +153,8 @@ def messages(src: str) -> str:
         'void dequeue_external_messages(RDRAM_ARG1) {\n'
         '    (void)goemon_jp::pause::controller().wait_if_paused(exited);\n',
         "external message batch checkpoint")
-    // Stage4 changed the unbounded wait into a 10ms interruptible
-    // guest-shutdown loop. Preserve that shutdown checkpoint.
+    # Stage4 changed the unbounded wait into a 10ms interruptible
+    # guest-shutdown loop. Preserve that shutdown checkpoint.
     src = once(src,
         'void ultramodern::wait_for_external_message(RDRAM_ARG1) {\n',
         'void ultramodern::wait_for_external_message(RDRAM_ARG1) {\n'
