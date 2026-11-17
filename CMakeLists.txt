@@ -1014,6 +1014,14 @@ if(GOEMON_BUILD_JAPAN)
         "${CMAKE_SOURCE_DIR}/src/main/register_overlays_japan.cpp"
         "${CMAKE_SOURCE_DIR}/src/main/register_patches_japan.cpp")
     add_executable(Goemon64RecompiledJP ${JP_SOURCES})
+    if(GOEMON_JP_INTEGRATED_F8_RESET_EXPERIMENTAL)
+        # librecomp is shared with the USA executable in this build.
+        # USA has no JP SDL audio reset callback: resolve the symbol with
+        # a fail-closed USA-only stub, never included in JP_SOURCES.
+        # Add AFTER taking the JP_SOURCES snapshot above.
+        target_sources(Goemon64Recompiled PRIVATE
+            "${CMAKE_SOURCE_DIR}/src/main/jp_integrated_audio_unavailable_usa.cpp")
+    endif()
     # Linux-only standalone crash/session logging; never linked into USA.
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         target_sources(Goemon64RecompiledJP PRIVATE
