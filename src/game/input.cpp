@@ -613,7 +613,7 @@ void recomp::poll_inputs() {
             "[Goemon JP generation stage13] generation=%llu request=%llu "
             "phase=%u admitted=0 backend=0 verified_fences=0x000 "
             "required_fences=0x%03X reason=backend-not-installed; "
-            "no guest stop, no RDRAM reset.\\n",
+            "no guest stop, no RDRAM reset.\n",
             static_cast<unsigned long long>(jp_request.generation),
             static_cast<unsigned long long>(jp_request.ticket),
             static_cast<unsigned>(jp_request.phase),
