@@ -8,6 +8,10 @@
 #include <stdexcept>
 #include <cinttypes>
 #include <cstring>
+#ifdef GOEMON_JP_SDL_AUDIO_STAGE15_ACTIVE
+#include <chrono>
+#include "../game/jp_generation_publisher_gate.hpp"
+#endif
 #ifdef GOEMON_JAPAN_NATIVE
 #include "goemon_japan_build_id.h"
 #if defined(__linux__)
@@ -64,7 +68,7 @@
 #include "../../lib/rt64/src/contrib/stb/stb_image.h"
 
 #ifdef GOEMON_JAPAN_NATIVE
-const std::string version_string = "0.2.21-dev";
+const std::string version_string = "0.2.22-dev";
 #ifdef GOEMON_JP_TIMER_STAGE1_ACTIVE
 constexpr const char* jp_timer_build_mode = " [timer-stage1]";
 #else
@@ -134,6 +138,11 @@ constexpr const char* jp_generation_build_mode = " [generation-admission-off]";
 constexpr const char* jp_config_fence_build_mode = " [config-publisher-fence]";
 #else
 constexpr const char* jp_config_fence_build_mode = " [config-publisher-fence-off]";
+#endif
+#ifdef GOEMON_JP_SDL_AUDIO_STAGE15_ACTIVE
+constexpr const char* jp_sdl_audio_build_mode = " [sdl-audio-exit]";
+#else
+constexpr const char* jp_sdl_audio_build_mode = " [sdl-audio-exit-off]";
 #endif
 #else
 const std::string version_string = "0.2.3-dev";
@@ -233,7 +242,7 @@ ultramodern::renderer::WindowHandle create_window(ultramodern::gfx_callbacks_t::
 
 #ifdef GOEMON_JAPAN_NATIVE
     const std::string window_title = "Goemon 64: Recompiled JP v" + version_string +
-        " (" + GOEMON_JP_BUILD_COMMIT + (GOEMON_JP_BUILD_DIRTY ? "-dirty" : "") + ")" + jp_timer_build_mode + jp_thread_build_mode + jp_guest_build_mode + jp_queue_build_mode + jp_join_build_mode + jp_events_build_mode + jp_boot_build_mode + jp_gfx_build_mode + jp_exit_build_mode + jp_action_build_mode + jp_live_build_mode + jp_barrier_build_mode + jp_generation_build_mode + jp_config_fence_build_mode;
+        " (" + GOEMON_JP_BUILD_COMMIT + (GOEMON_JP_BUILD_DIRTY ? "-dirty" : "") + ")" + jp_timer_build_mode + jp_thread_build_mode + jp_guest_build_mode + jp_queue_build_mode + jp_join_build_mode + jp_events_build_mode + jp_boot_build_mode + jp_gfx_build_mode + jp_exit_build_mode + jp_action_build_mode + jp_live_build_mode + jp_barrier_build_mode + jp_generation_build_mode + jp_config_fence_build_mode + jp_sdl_audio_build_mode;
 #else
     const std::string window_title = "Goemon 64: Recompiled";
 #endif
@@ -273,6 +282,11 @@ void update_gfx(void*) {
 
 static SDL_AudioCVT audio_convert;
 static SDL_AudioDeviceID audio_device = 0;
+#ifdef GOEMON_JP_SDL_AUDIO_STAGE15_ACTIVE
+// Host-only audio callback publication fence: separate from SDL lifecycle.
+// Only normal app return may close it; F8 does not change this state.
+static goemon_jp::reset::PublisherGate jp_sdl_audio_gate{1};
+#endif
 #ifdef GOEMON_JP_BOOT_STAGE7_ACTIVE
 void jp_report_sdl_audio_queue() {
     // SDL owns the actual playback buffer; this read does not clear or
@@ -301,6 +315,11 @@ static uint32_t discarded_output_frames;
 constexpr uint32_t bytes_per_frame = input_channels * sizeof(float);
 
 void queue_samples(int16_t* audio_data, size_t sample_count) {
+#ifdef GOEMON_JP_SDL_AUDIO_STAGE15_ACTIVE
+    // Own a counted lease across conversion AND SDL_QueueAudio.
+    auto jp_audio_lease = jp_sdl_audio_gate.try_acquire();
+    if (!jp_audio_lease) return;
+#endif
     // Buffer for holding the output of swapping the audio channels. This is reused across
     // calls to reduce runtime allocations.
     static std::vector<float> swap_buffer;
@@ -366,6 +385,11 @@ void queue_samples(int16_t* audio_data, size_t sample_count) {
 }
 
 size_t get_frames_remaining() {
+#ifdef GOEMON_JP_SDL_AUDIO_STAGE15_ACTIVE
+    // SDL_GetQueuedAudioSize also needs to complete before device close.
+    auto jp_audio_lease = jp_sdl_audio_gate.try_acquire();
+    if (!jp_audio_lease) return 0;
+#endif
     constexpr float buffer_offset_frames = 1.0f;
     // Get the number of remaining buffered audio bytes.
     uint64_t buffered_byte_count = SDL_GetQueuedAudioSize(audio_device);
@@ -401,6 +425,11 @@ void update_audio_converter() {
 }
 
 void set_frequency(uint32_t freq) {
+#ifdef GOEMON_JP_SDL_AUDIO_STAGE15_ACTIVE
+    // Converter settings must not mutate after the SDL audio close barrier.
+    auto jp_audio_lease = jp_sdl_audio_gate.try_acquire();
+    if (!jp_audio_lease) return;
+#endif
     sample_rate = freq;
 
     update_audio_converter();
@@ -679,13 +708,13 @@ void reorder_texture_pack(recomp::mods::ModContext&) {
 int main(int argc, char** argv) {
     if (argc >= 2 && std::strcmp(argv[1], "--version") == 0) {
 #ifdef GOEMON_JAPAN_NATIVE
-        printf("Goemon 64: Recompiled JP v%s (%s%s)%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
+        printf("Goemon 64: Recompiled JP v%s (%s%s)%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
                version_string.c_str(), GOEMON_JP_BUILD_COMMIT,
                GOEMON_JP_BUILD_DIRTY ? "-dirty" : "", jp_timer_build_mode,
                jp_thread_build_mode, jp_guest_build_mode, jp_queue_build_mode,
                jp_join_build_mode, jp_events_build_mode, jp_boot_build_mode,
                jp_gfx_build_mode, jp_exit_build_mode, jp_action_build_mode,
-               jp_live_build_mode, jp_barrier_build_mode, jp_generation_build_mode, jp_config_fence_build_mode);
+               jp_live_build_mode, jp_barrier_build_mode, jp_generation_build_mode, jp_config_fence_build_mode, jp_sdl_audio_build_mode);
 #else
         printf("Goemon 64: Recompiled v%s\n", version_string.c_str());
 #endif
@@ -872,6 +901,42 @@ int main(int argc, char** argv) {
         error_handling_callbacks,
         threads_callbacks
     );
+
+#ifdef GOEMON_JP_SDL_AUDIO_STAGE15_ACTIVE
+    // Stage15: ONLY after recomp::start returns from normal PC app exit.
+    // Guest/native joins are performed internally before this point.
+    // This fence prevents late audio callback access to a closed SDL device.
+    const bool jp_audio_leases_drained =
+        jp_sdl_audio_gate.close_for_pc_exit(std::chrono::milliseconds{1000});
+    const auto jp_audio_exit_state = jp_sdl_audio_gate.snapshot();
+    unsigned jp_audio_before = 0;
+    unsigned jp_audio_after = 0;
+    bool jp_audio_device_closed = false;
+    if (jp_audio_leases_drained && audio_device != 0) {
+        jp_audio_before = SDL_GetQueuedAudioSize(audio_device);
+        SDL_PauseAudioDevice(audio_device, 1);
+        SDL_ClearQueuedAudio(audio_device);
+        jp_audio_after = SDL_GetQueuedAudioSize(audio_device);
+        SDL_CloseAudioDevice(audio_device);
+        audio_device = 0;
+        jp_audio_device_closed = true;
+    }
+    const bool jp_audio_exit_confirmed =
+        jp_audio_leases_drained && jp_audio_device_closed &&
+        jp_audio_after == 0;
+    std::fprintf(stderr,
+        "[Goemon JP SDL audio exit stage15] permit_drained=%u "
+        "accepted=%llu rejected=%llu inflight=%llu queued_before=%u "
+        "queued_after=%u device_closed=%u confirmed=%u; "
+        "PC exit only, no live reset or generation rearm.\\n",
+        static_cast<unsigned>(jp_audio_leases_drained),
+        static_cast<unsigned long long>(jp_audio_exit_state.accepted),
+        static_cast<unsigned long long>(jp_audio_exit_state.rejected),
+        static_cast<unsigned long long>(jp_audio_exit_state.in_flight),
+        jp_audio_before, jp_audio_after,
+        static_cast<unsigned>(jp_audio_device_closed),
+        static_cast<unsigned>(jp_audio_exit_confirmed));
+#endif
 
     NFD_Quit();
 
