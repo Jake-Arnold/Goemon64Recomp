@@ -120,7 +120,7 @@ def instrument_timer(original: str) -> str:
         "    std::fprintf(stderr,\n"
         "        \"[Goemon JP timer exit stage17] producers_drained=%u \"\n"
         "        \"worker_joined=%u open=%u inflight=%llu accepted=%llu \"\n"
-        "        \"rejected=%llu safe_to_unmap=%u \"\n"
+        "        \"rejected=%llu timer_safe=%u \"\n"
         "        \"epoch_rearm=unproven; normal PC exit only.\\n\",\n"
         "        static_cast<unsigned>(jp_timer_publishers_done),\n"
         "        static_cast<unsigned>(jp_timer_exit_worker_joined.load(std::memory_order_acquire)),\n"
