@@ -52,6 +52,9 @@ namespace ultramodern { void jp_report_timer_producer_stage17(); }
 #ifdef GOEMON_JP_TIMER_EPOCH_STAGE18_ACTIVE
 namespace ultramodern { void jp_report_timer_epoch_stage18(); }
 #endif
+#ifdef GOEMON_JP_EXPERIMENTAL_RESET_BACKEND_ACTIVE
+namespace recomp { bool jp_request_integrated_reset(); }
+#endif
 
 constexpr float axis_threshold = 0.5f;
 
@@ -578,6 +581,14 @@ void recomp::poll_inputs() {
     static bool reset_was_held = true;
     if (reset_held && !reset_was_held && ultramodern::is_game_started() &&
         !recomp::game_input_disabled() && !recomp::all_input_disabled()) {
+#ifdef GOEMON_JP_EXPERIMENTAL_RESET_BACKEND_ACTIVE
+        // Experimental: request a verified per-generation teardown and
+        // re-entry. Input never touches worker queues or RDRAM itself.
+        if (recomp::jp_request_integrated_reset()) {
+            reset_was_held = reset_held;
+            return;
+        }
+#else
         fprintf(stderr,
                 "[Goemon JP reset] Request received; native reset backend not installed. "
                 "Game continues without modification.\n");
@@ -640,6 +651,7 @@ void recomp::poll_inputs() {
         // Read-only synchronized timebase: generation remains 1.
         ultramodern::jp_report_timer_epoch_stage18();
 #endif
+#endif // GOEMON_JP_EXPERIMENTAL_RESET_BACKEND_ACTIVE
     }
     reset_was_held = reset_held;
 #endif
