@@ -180,6 +180,11 @@ public:
 #else
         version_string += " [action-exit-off]";
 #endif
+#ifdef GOEMON_JP_LIVE_STAGE11_ACTIVE
+        version_string += " [live-preflight]";
+#else
+        version_string += " [live-preflight-off]";
+#endif
 #endif
         constructor.Bind("version_number", &version_string);
 
