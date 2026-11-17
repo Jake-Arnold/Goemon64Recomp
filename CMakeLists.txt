@@ -496,6 +496,10 @@ if(GOEMON_BUILD_JAPAN)
     option(GOEMON_JP_BOOT_STAGE7 "Enable JP native boot, saving and audio lifecycle audit" OFF)
     option(GOEMON_JP_GRAPHICS_STAGE8 "Enable JP graphics action queue settlement audit" OFF)
     option(GOEMON_JP_EXIT_STAGE9 "Enable bounded guest OSThread shutdown only on PC exit" OFF)
+    option(GOEMON_JP_ACTION_STAGE10 "Enable PC-exit-only residual action queue drain" OFF)
+    if(GOEMON_JP_ACTION_STAGE10 AND NOT GOEMON_JP_EXIT_STAGE9)
+        message(FATAL_ERROR "GOEMON_JP_ACTION_STAGE10 requires GOEMON_JP_EXIT_STAGE9=ON")
+    endif()
     if(GOEMON_JP_EXIT_STAGE9 AND NOT GOEMON_JP_GRAPHICS_STAGE8)
         message(FATAL_ERROR "GOEMON_JP_EXIT_STAGE9 requires GOEMON_JP_GRAPHICS_STAGE8=ON")
     endif()
@@ -521,7 +525,17 @@ if(GOEMON_BUILD_JAPAN)
         message(FATAL_ERROR "GOEMON_JP_THREAD_STAGE2 requires GOEMON_JP_TIMER_STAGE1=ON")
     endif()
     if(GOEMON_JP_THREAD_STAGE2)
-        if(GOEMON_JP_EXIT_STAGE9)
+        if(GOEMON_JP_ACTION_STAGE10)
+            set(JP_THREAD_SCRIPT "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_action_drain_stage10.py")
+            set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+                "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_guest_exit_stage9.py"
+                "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_graphics_queue_stage8.py"
+                "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_native_events_stage6.py"
+                "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_guest_join_stage5.py"
+                "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_queue_cleaner_stage4.py"
+                "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_guest_quiescence_stage3.py"
+                "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_guest_threads_runtime.py")
+        elseif(GOEMON_JP_EXIT_STAGE9)
             set(JP_THREAD_SCRIPT "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_guest_exit_stage9.py")
             set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
                 "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_graphics_queue_stage8.py"
@@ -714,6 +728,35 @@ if(GOEMON_BUILD_JAPAN)
         set_property(TARGET librecomp PROPERTY SOURCES ${JP_STAGE9_RECOMP_SOURCES})
         target_sources(librecomp PRIVATE "${JP_TIMER_GENERATED_DIR}/recomp_stage9.cpp")
     endif()
+    # Stage10 composes guest stage9 and graphics stage8 in new generated
+    # sources, then swaps the stage9 recomp copy for its exit-drain copy.
+    if(GOEMON_JP_ACTION_STAGE10)
+        set(JP_STAGE10_SCRIPT "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_action_drain_stage10.py")
+        execute_process(
+            COMMAND "${Python3_EXECUTABLE}" "${JP_STAGE10_SCRIPT}"
+                --mode recomp
+                --source "${JP_TIMER_GENERATED_DIR}/recomp_stage7.cpp"
+                --output "${JP_TIMER_GENERATED_DIR}/recomp_stage10.cpp"
+            RESULT_VARIABLE JP_STAGE10_RESULT
+            OUTPUT_VARIABLE JP_STAGE10_OUTPUT
+            ERROR_VARIABLE JP_STAGE10_ERROR)
+        if(NOT JP_STAGE10_RESULT EQUAL 0)
+            message(FATAL_ERROR
+                "JP stage10 action drain generation failed:\n"
+                "${JP_STAGE10_OUTPUT}\n${JP_STAGE10_ERROR}")
+        endif()
+        message(STATUS "${JP_STAGE10_OUTPUT}")
+        get_target_property(JP_STAGE10_RECOMP_SOURCES librecomp SOURCES)
+        list(FIND JP_STAGE10_RECOMP_SOURCES
+            "${JP_TIMER_GENERATED_DIR}/recomp_stage9.cpp" JP_STAGE10_OLD_RECOMP)
+        if(JP_STAGE10_OLD_RECOMP EQUAL -1)
+            message(FATAL_ERROR "Stage10 requires generated stage9 recomp source")
+        endif()
+        list(REMOVE_ITEM JP_STAGE10_RECOMP_SOURCES
+            "${JP_TIMER_GENERATED_DIR}/recomp_stage9.cpp")
+        set_property(TARGET librecomp PROPERTY SOURCES ${JP_STAGE10_RECOMP_SOURCES})
+        target_sources(librecomp PRIVATE "${JP_TIMER_GENERATED_DIR}/recomp_stage10.cpp")
+    endif()
     # Reuse the existing frontend sources and shared shader/icon build rules.
     get_target_property(JP_SOURCES Goemon64Recompiled SOURCES)
     list(REMOVE_ITEM JP_SOURCES
@@ -755,6 +798,9 @@ if(GOEMON_BUILD_JAPAN)
     endif()
     if(GOEMON_JP_EXIT_STAGE9)
         target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JP_EXIT_STAGE9_ACTIVE)
+    endif()
+    if(GOEMON_JP_ACTION_STAGE10)
+        target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JP_ACTION_STAGE10_ACTIVE)
     endif()
     # Regenerate the build-commit identifier on every JP build. The script
     # writes only when content changes; incremental compilation stays fast.
