@@ -55,7 +55,7 @@ class SaveFinalizeStage16Tests(unittest.TestCase):
         # The local epoch declaration (= 0) is correctly outside the lock;
         # the *snapshot assignment* must follow the locked file write.
         self.assertIn("std::uint64_t jp_save_snapshot_epoch = 0;", s)
-        snapshot_assignment = s.index("jp_save_snapshot_epoch =\\n")
+        snapshot_assignment = s.index("jp_save_snapshot_epoch =\n")
         self.assertLess(
             s.index("std::lock_guard lock{ save_context.save_buffer_mutex }"),
             snapshot_assignment)
