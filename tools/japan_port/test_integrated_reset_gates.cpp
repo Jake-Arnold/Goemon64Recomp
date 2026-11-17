@@ -40,7 +40,7 @@ int main() {
     PublisherGate gate{1};
     TimerEpochClock clock{};
     stop_and_rearm(gate, clock, 1);
-    assert(gate.try_acquire());
+    assert(static_cast<bool>(gate.try_acquire()));
     stop_and_rearm(gate, clock, 2);
     assert(gate.snapshot().generation == 3);
     assert(clock.snapshot().generation == 3);
