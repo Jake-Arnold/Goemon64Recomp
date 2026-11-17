@@ -505,6 +505,10 @@ if(GOEMON_BUILD_JAPAN)
     option(GOEMON_JP_SAVE_STAGE16 "Enable pending save finalization after worker join on PC exit" OFF)
     option(GOEMON_JP_TIMER_PUBLISH_STAGE17 "Enable timer producer fence and RDRAM guard on PC exit" OFF)
     option(GOEMON_JP_TIMER_EPOCH_STAGE18 "Enable synchronized JP timer clock with test-only epoch rebase" OFF)
+    option(GOEMON_JP_INTEGRATED_F8_RESET_EXPERIMENTAL "Experimental same-process F8 reset (may be unstable; disposable saves only)" OFF)
+    if(GOEMON_JP_INTEGRATED_F8_RESET_EXPERIMENTAL AND NOT GOEMON_JP_TIMER_EPOCH_STAGE18)
+        message(FATAL_ERROR "Integrated reset requires all Stage1-18 prerequisites")
+    endif()
     if(GOEMON_JP_TIMER_EPOCH_STAGE18 AND NOT GOEMON_JP_TIMER_PUBLISH_STAGE17)
         message(FATAL_ERROR "GOEMON_JP_TIMER_EPOCH_STAGE18 requires GOEMON_JP_TIMER_PUBLISH_STAGE17=ON")
     endif()
@@ -956,6 +960,48 @@ if(GOEMON_BUILD_JAPAN)
         set_property(TARGET ultramodern PROPERTY SOURCES ${JP_STAGE18_TIMER_SOURCES})
         target_sources(ultramodern PRIVATE "${JP_TIMER_GENERATED_DIR}/timer_stage18.cpp")
     endif()
+    # One integrated F8 reset experiment; all 5 generated runtime
+    # components change together or CMake fails. Default OFF.
+    if(GOEMON_JP_INTEGRATED_F8_RESET_EXPERIMENTAL)
+        set(JP_INTEGRATED_SCRIPT "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_integrated_reset_experiment.py")
+        set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+            "${JP_INTEGRATED_SCRIPT}" "${CMAKE_SOURCE_DIR}/src/game/jp_generation_publisher_gate.hpp"
+            "${CMAKE_SOURCE_DIR}/src/game/jp_timer_epoch_clock.hpp")
+        execute_process(
+            COMMAND "${Python3_EXECUTABLE}" "${JP_INTEGRATED_SCRIPT}"
+                --generated-dir "${JP_TIMER_GENERATED_DIR}"
+            RESULT_VARIABLE JP_INTEGRATED_RESULT
+            OUTPUT_VARIABLE JP_INTEGRATED_OUTPUT
+            ERROR_VARIABLE JP_INTEGRATED_ERROR)
+        if(NOT JP_INTEGRATED_RESULT EQUAL 0)
+            message(FATAL_ERROR "Integrated reset generation failed:\n${JP_INTEGRATED_OUTPUT}\n${JP_INTEGRATED_ERROR}")
+        endif()
+        message(STATUS "${JP_INTEGRATED_OUTPUT}")
+        foreach(JP_TARGET_PAIR IN ITEMS
+            "ultramodern|threads.cpp|threads_reset.cpp"
+            "ultramodern|events.cpp|events_integrated.cpp"
+            "ultramodern|timer_stage18.cpp|timer_integrated.cpp"
+            "librecomp|pi_stage16.cpp|pi_integrated.cpp"
+            "librecomp|recomp_stage17.cpp|recomp_integrated.cpp")
+            string(REPLACE "|" ";" JP_PAIR "${JP_TARGET_PAIR}")
+            list(GET JP_PAIR 0 JP_TARGET)
+            list(GET JP_PAIR 1 JP_OLD_SOURCE)
+            list(GET JP_PAIR 2 JP_NEW_SOURCE)
+            get_target_property(JP_SOURCES "${JP_TARGET}" SOURCES)
+            list(FIND JP_SOURCES "${JP_TIMER_GENERATED_DIR}/${JP_OLD_SOURCE}" JP_OLD_POS)
+            if(JP_OLD_POS EQUAL -1)
+                message(FATAL_ERROR "Integrated reset requires generated ${JP_OLD_SOURCE} in ${JP_TARGET}")
+            endif()
+            list(REMOVE_ITEM JP_SOURCES "${JP_TIMER_GENERATED_DIR}/${JP_OLD_SOURCE}")
+            set_property(TARGET "${JP_TARGET}" PROPERTY SOURCES ${JP_SOURCES})
+            target_sources("${JP_TARGET}" PRIVATE "${JP_TIMER_GENERATED_DIR}/${JP_NEW_SOURCE}")
+        endforeach()
+        target_compile_definitions(ultramodern PRIVATE GOEMON_JP_EXPERIMENTAL_RESET_BACKEND_ACTIVE)
+        target_compile_definitions(librecomp PRIVATE GOEMON_JP_EXPERIMENTAL_RESET_BACKEND_ACTIVE)
+        target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JP_EXPERIMENTAL_RESET_BACKEND_ACTIVE)
+        target_include_directories(ultramodern PRIVATE "${CMAKE_SOURCE_DIR}/src/game")
+    endif()
+
     # Reuse the existing frontend sources and shared shader/icon build rules.
     get_target_property(JP_SOURCES Goemon64Recompiled SOURCES)
     list(REMOVE_ITEM JP_SOURCES
