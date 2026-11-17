@@ -121,6 +121,62 @@ retested in Ubuntu; no claim of title-screen recovery until observed.
 The new source test checks both pinned-code modifications, and CI
 compiles all **seven** generated C++ translation units.
 
+## Live Ubuntu breakthrough — three consecutive F8 restarts (17 Nov 2026)
+
+**Observed:** User ran native JP build `v0.2.25-dev`, commit
+`d6e0deff92`, session log
+`session-20261117-181400-pid54625-cVwAXE.log`. User reports
+the game now works correctly after reset and the external RAM toolkit
+remains connected. This is **the first confirmed successful live
+multi-generation in-process reset** (previous generation-2 black screen
+is resolved on this build).
+
+The same log shows the complete sequence:
+
+| Guest generation | F8 old→new | Old OSThread cleanup (cumulative) | Graphics jobs completed (cumulative) | New boot |
+|---|---|---|---|---|
+| 1 → 2 | `result=REARMED` | created=5 finished=5 joined=5 | 312/312 | RT64 GPU, fonts, ROM decompress, heap |
+| 2 → 3 | `result=REARMED` | created=10 finished=10 joined=10 | 693/693 | RT64 GPU, fonts, ROM decompress, heap |
+| 3 → 4 | `result=REARMED` | created=15 finished=15 joined=15 | 1085/1085 | RT64 GPU, fonts, ROM decompress, heap |
+
+All three cycles report Stage12 `known_joined=1`, Stage17
+`timer_safe=1`, joined VI/GFX/SP workers, `audio_reused=1
+queue_cleared=1`, `external_queue_drained=1`, and no
+`result=ABORT` or crash marker. The second shutdown explicitly
+reported `native_running_queue_cleared=1 stale_head=1`, demonstrating
+that the new after-join scheduler-head clearing had an actual stale
+pointer to remove. JP ROM restoration was logged on generations
+2, 3 and 4 before each heap initialization.
+
+**Process identity:** the logger started with PID `54625` and
+recorded all three resets within that single session. The
+`pid=unchanged window=preserved` lines report the intent of the
+in-process owner; the continuous same-PID session and preserved
+window ownership corroborate it. There is no evidence of `exec`
+or a second process launch.
+
+**External toolkit:** the user reports that its connection remains
+live across resets. Since `munmap` and `mmap` replace RDRAM, this
+does not by itself establish whether the toolkit follows the new
+mapping/address. Verify that memory reads and writes operate on
+current guest values after multiple resets; a retained PID/process
+handle is insufficient to prove the RDRAM base is unchanged.
+
+**Still unverified:** the observed save-finalize path was always
+`mutated=0 final_attempt=0`; no dirty-save persistence/durability
+test has been performed. Timer publishers showed
+`accepted=0 rejected=0`; no real timer API publication path was
+exercised. The log alone does not establish extended gameplay
+stability, audio playback quality, or repeated debugger memory
+reads/writes (user says gameplay/toolkit appear correct). Do not
+claim leak-free or sanitizer-proven graphics lifecycle.
+
+**Disposition:** the feature has achieved its primary live
+multi-reset functionality on Ubuntu. Keep default OFF and PR
+draft until explicit save persistence, toolkit live-memory
+rebinding and longer-session regression checks pass. No additional
+diagnostic-only staging is needed.
+
 ## Ubuntu test (disposable saves only)
 
 Backup saves first. This feature is **experimental** and may crash.
