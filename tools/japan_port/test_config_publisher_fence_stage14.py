@@ -107,7 +107,7 @@ class PublisherFenceStage14(unittest.TestCase):
     def test_version_tags(self):
         main = (ROOT / "src/main/main.cpp").read_text()
         ui = (ROOT / "src/ui/ui_launcher.cpp").read_text()
-        self.assertIn('version_string = "0.2.23-dev"', main)
+        self.assertIn('version_string = "0.2.24-dev"', main)
         self.assertIn('version_string = "0.2.3-dev"', main)
         self.assertIn("[config-publisher-fence]", main)
         self.assertIn("[config-publisher-fence]", ui)
