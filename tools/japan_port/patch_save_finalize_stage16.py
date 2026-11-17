@@ -79,6 +79,13 @@ def instrument_pi(original: str) -> str:
     replace = stage7.once
     src = replace(
         src,
+        "#include <memory>\\n#include <atomic>\\n#include <cstdio>\\n",
+        "#include <memory>\\n#include <atomic>\\n#include <cstdio>\\n"
+        "#include <cstdint>\\n#include <exception>\\n",
+        "Stage16 explicit fixed-width integer and exception headers",
+    )
+    src = replace(
+        src,
         "static std::atomic_uint64_t jp_save_flush_successes{0};\n",
         "static std::atomic_uint64_t jp_save_flush_successes{0};\n"
         "static std::atomic_uint64_t jp_save_mutation_epoch{0};\n"
