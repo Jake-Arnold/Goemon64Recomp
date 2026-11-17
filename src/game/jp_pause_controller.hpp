@@ -1,0 +1,79 @@
+#pragma once
+
+// JP-native cooperative pause gate.
+//
+// Stops dispatch at scheduler, VI, graphics, RSP, timer and message-queue
+// boundaries. The SDL event loop remains responsive; the current guest
+// generation and RDRAM remain allocated. This is not a savestate/snapshot,
+// and a CPU-bound guest function with no runtime call is not preempted.
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
+#include <cstdint>
+#include <mutex>
+
+namespace goemon_jp::pause {
+
+class Controller final {
+public:
+    Controller() = default;
+    Controller(const Controller&) = delete;
+    Controller& operator=(const Controller&) = delete;
+
+    [[nodiscard]] bool is_paused() const noexcept {
+        return paused_.load(std::memory_order_acquire);
+    }
+
+    [[nodiscard]] std::uint64_t transitions() const noexcept {
+        return transitions_.load(std::memory_order_acquire);
+    }
+
+    // Called by the SDL event thread when F6 toggles. Never destroys guest
+    // state, cancels native threads or replaces the SDL window.
+    [[nodiscard]] bool set_paused(bool pause) noexcept {
+        bool changed;
+        {
+            std::lock_guard<std::mutex> guard(mutex_);
+            changed = paused_.load(std::memory_order_relaxed) != pause;
+            if (changed) {
+                paused_.store(pause, std::memory_order_release);
+                transitions_.fetch_add(1, std::memory_order_acq_rel);
+            }
+        }
+        if (!pause) {
+            cv_.notify_all();
+        }
+        return changed;
+    }
+
+    // A host worker calls this only at a safe runtime boundary, not while
+    // holding the game runtime's message/graphics locks. Wake periodically
+    // so normal PC exit cannot be stranded if a caller omitted resume.
+    [[nodiscard]] bool wait_if_paused(
+        const std::atomic_bool& process_exiting) noexcept {
+        if (!is_paused()) {
+            return !process_exiting.load(std::memory_order_acquire);
+        }
+        std::unique_lock<std::mutex> lock(mutex_);
+        while (paused_.load(std::memory_order_acquire) &&
+               !process_exiting.load(std::memory_order_acquire)) {
+            cv_.wait_for(lock, std::chrono::milliseconds{10});
+        }
+        return !process_exiting.load(std::memory_order_acquire);
+    }
+
+private:
+    std::atomic_bool paused_{false};
+    std::atomic_uint64_t transitions_{0};
+    mutable std::mutex mutex_;
+    std::condition_variable cv_;
+};
+
+// One C++17 inline variable shared by the statically linked JP runtime and
+// frontend translation units; never create one instance per worker.
+inline Controller global_controller{};
+[[nodiscard]] inline Controller& controller() noexcept {
+    return global_controller;
+}
+
+} // namespace goemon_jp::pause
