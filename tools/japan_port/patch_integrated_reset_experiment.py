@@ -46,6 +46,11 @@ def threads(src: str) -> str:
     if "jp_rearm_guest_after_verified_exit" in src:
         raise ValueError("Guest rearm already installed")
     src = once(src,
+        '#include "ultramodern/ultramodern.hpp"\n',
+        '#include "ultramodern/ultramodern.hpp"\n'
+        'namespace ultramodern { bool jp_rearm_guest_after_verified_exit(); }\n',
+        "guest rearm declaration before out-of-namespace definition")
+    src = once(src,
         "void ultramodern::request_guest_shutdown_for_future_reset() {\n",
         GUEST_REARM + "void ultramodern::request_guest_shutdown_for_future_reset() {\n",
         "guest join-based rearm owner")
@@ -163,6 +168,11 @@ def saving(src: str) -> str:
     if "jp_rearm_saving_after_verified_exit" in src:
         raise ValueError("Saving rearm already installed")
     src = once(src,
+        '#include <ultramodern/ultramodern.hpp>\n',
+        '#include <ultramodern/ultramodern.hpp>\n'
+        'namespace ultramodern { bool jp_rearm_saving_after_verified_exit(); }\n',
+        "save rearm forward declaration")
+    src = once(src,
         "void ultramodern::init_saving(RDRAM_ARG1) {\n",
         SAVE_REARM + "void ultramodern::init_saving(RDRAM_ARG1) {\n",
         "safe save epoch and notification rearm")
@@ -172,6 +182,7 @@ def saving(src: str) -> str:
 RESET_OWNER = r"""// Experimental reset ownership: F8 requests are handled by the existing
 // normal-exit join path, then a new guest generation is created inside the
 // SAME recomp::start() invocation (without a new PID or SDL_Window).
+namespace recomp { bool jp_request_integrated_reset(); }
 static std::atomic_bool jp_integrated_restart_requested{false};
 static std::u8string jp_integrated_restart_game_id;
 static std::atomic_uint64_t jp_integrated_generation{1};
