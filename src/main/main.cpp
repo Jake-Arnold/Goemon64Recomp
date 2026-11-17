@@ -247,6 +247,16 @@ bool SetImageAsIcon(const char* filename, SDL_Window* window)
 SDL_Window* window;
 
 ultramodern::renderer::WindowHandle create_window(ultramodern::gfx_callbacks_t::gfx_data_t) {
+#ifdef GOEMON_JP_EXPERIMENTAL_RESET_BACKEND_ACTIVE
+    // The surrounding recomp::start() never returned to main: retain the
+    // exact SDL_Window pointer through the verified guest-generation loop.
+    if (window != nullptr) {
+        std::fprintf(stderr,
+            "[Goemon JP integrated reset] SDL window reused=%p pid=unchanged.\n",
+            static_cast<void*>(window));
+        return ultramodern::renderer::WindowHandle{window};
+    }
+#endif
     uint32_t flags = SDL_WINDOW_RESIZABLE;
 
 #if defined(__APPLE__)
@@ -302,6 +312,28 @@ static SDL_AudioDeviceID audio_device = 0;
 // Only normal app return may close it; F8 does not change this state.
 static goemon_jp::reset::PublisherGate jp_sdl_audio_gate{1};
 #endif
+#ifdef GOEMON_JP_EXPERIMENTAL_RESET_BACKEND_ACTIVE
+namespace recomp {
+bool jp_reset_audio_buffer_after_join() {
+    // The previous guest, native event workers and SDL audio dispatch have
+    // joined before this function runs. Keep the device and SDL window alive.
+    const auto state = jp_sdl_audio_gate.snapshot();
+    if (!state.open || state.in_flight != 0 || audio_device == 0) {
+        return false;
+    }
+    SDL_PauseAudioDevice(audio_device, 1);
+    SDL_ClearQueuedAudio(audio_device);
+    const bool cleared = SDL_GetQueuedAudioSize(audio_device) == 0;
+    SDL_PauseAudioDevice(audio_device, 0);
+    std::fprintf(stderr,
+        "[Goemon JP integrated reset] audio_reused=%u queue_cleared=%u.\n",
+        static_cast<unsigned>(audio_device != 0),
+        static_cast<unsigned>(cleared));
+    return cleared;
+}
+} // namespace recomp
+#endif
+
 #ifdef GOEMON_JP_BOOT_STAGE7_ACTIVE
 void jp_report_sdl_audio_queue() {
     // SDL owns the actual playback buffer; this read does not clear or
