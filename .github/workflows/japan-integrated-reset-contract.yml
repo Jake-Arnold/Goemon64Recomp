@@ -48,6 +48,7 @@ jobs:
             -I"${ROOT}/librecomp/include/librecomp"
             -I"${ROOT}/librecomp/src"
             -I"${ROOT}/thirdparty/concurrentqueue"
+            -I"${ROOT}/thirdparty/miniz"
             -I"${ROOT}/thirdparty"
             -I"${ROOT}/N64Recomp/include"
             -I"${ROOT}/ultramodern/src"
