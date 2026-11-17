@@ -25,7 +25,9 @@ class JapanGenerationStage13(unittest.TestCase):
         self.assertIn("std::atomic<std::uint64_t> generation_{1}", self.header)
         self.assertIn("std::atomic<Phase> phase_{Phase::Running}", self.header)
         self.assertNotIn("std::atomic_bool exited", self.header)
-        self.assertNotIn("RDRAM", self.header.split("class Coordinator final", 1)[1])
+        self.assertNotIn("munmap(", self.header)
+        self.assertNotIn("memset(", self.header)
+        self.assertNotIn("request_guest_shutdown_for_future_reset(", self.header)
 
     def test_atomic_request_tickets_and_fail_closed_result(self):
         self.assertIn("attempts_.fetch_add(1, std::memory_order_relaxed) + 1", self.header)
