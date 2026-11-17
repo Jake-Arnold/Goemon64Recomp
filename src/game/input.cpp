@@ -49,6 +49,9 @@ namespace ultramodern { void jp_report_config_action_producer_gate(); }
 #ifdef GOEMON_JP_TIMER_PUBLISH_STAGE17_ACTIVE
 namespace ultramodern { void jp_report_timer_producer_stage17(); }
 #endif
+#ifdef GOEMON_JP_TIMER_EPOCH_STAGE18_ACTIVE
+namespace ultramodern { void jp_report_timer_epoch_stage18(); }
+#endif
 
 constexpr float axis_threshold = 0.5f;
 
@@ -632,6 +635,10 @@ void recomp::poll_inputs() {
 #ifdef GOEMON_JP_TIMER_PUBLISH_STAGE17_ACTIVE
         // Read-only live observation. Do not close timer producer admission.
         ultramodern::jp_report_timer_producer_stage17();
+#endif
+#ifdef GOEMON_JP_TIMER_EPOCH_STAGE18_ACTIVE
+        // Read-only synchronized timebase: generation remains 1.
+        ultramodern::jp_report_timer_epoch_stage18();
 #endif
     }
     reset_was_held = reset_held;
