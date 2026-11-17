@@ -416,8 +416,8 @@ def main() -> None:
     changes = [
         ("threads.cpp", "threads_reset.cpp", threads),
         ("mesgqueue.cpp", "mesgqueue_integrated.cpp", messages),
-        ("timer_stage18.cpp", "timer_integrated.cpp", timer),
         ("events.cpp", "events_integrated.cpp", events),
+        ("timer_stage18.cpp", "timer_integrated.cpp", timer),
         ("pi_stage16.cpp", "pi_integrated.cpp", saving),
         ("recomp_stage17.cpp", "recomp_integrated.cpp", recomp),
     ]
