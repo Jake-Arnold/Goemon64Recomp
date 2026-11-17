@@ -79,9 +79,12 @@ Stage14 host publisher gate: PASS; concurrency=10, attempts=30000, generation=9,
 
 Tests include a held permit blocking close, terminal timeout remaining
 closed, 10 threads racing with closure, exact accepted/rejected counts
-and no outstanding in-flight permit after close. This is a host-only
-unit test; it **does not prove** the generated events.cpp compiles or
-behaves correctly during native Japanese gameplay.
+and no outstanding in-flight permit after close. A separate
+`-fsanitize=address,undefined` build/run also **passed** with
+`ASAN_OPTIONS=detect_leaks=1:halt_on_error=1` and
+`UBSAN_OPTIONS=halt_on_error=1`. These are host-only unit tests; they
+**do not prove** the generated events.cpp compiles or behaves correctly
+during native Japanese gameplay.
 
 11 new ROM-free Python tests were authored to check the generated
 source-splice contract, F8 read-only path, close-before-drain ordering,
