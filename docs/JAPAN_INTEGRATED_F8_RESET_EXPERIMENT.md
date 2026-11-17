@@ -29,7 +29,7 @@ and worker joins, native VI/GFX/SP workers join, abandoned graphics and
 config actions drain, and Stage16 save mutations are finalized. Stage12's
 combined `known_joined` and Stage17's timer proof are required.
 
-An additional **sixth integrated runtime component** closes the producer
+An additional **external-message integrated runtime component** closes the producer
 gate of the external N64 message queue, drains queued records referencing
 old `OSMesgQueue` guest-memory addresses, and rearms the gate only after
 all old workers have joined. The old guest RDRAM is released only if the
@@ -80,6 +80,46 @@ feature is working until those pass on native Ubuntu.
 All previous Stage1–18 opt-in switches remain in the existing build
 cache. This branch does not touch USA code paths, original ROMs, or pinned
 runtime submodules.
+
+## First live restart failure and corrected causes (17 Nov 2026)
+
+The first Ubuntu **full native build and link passed** on
+`84d101f424`. F8 then completed guest/native teardown and RDRAM
+replacement, reported `generation=2 result=REARMED`, recreated
+RT64 (GPU enumerated again), loaded RmlUi fonts and initialized the
+recompiled heap a second time. **The screen remained black** rather
+than showing the title; the first reset was not an end-to-end pass.
+
+Review of the exact pinned C++ source identified two concrete
+generation-local defects; both are now corrected in the **same**
+experimental branch:
+
+1. `recomp::load_stored_rom()` mutates the registered
+   `GameEntry.has_compressed_code` to `false` on initial decompression.
+   Since this flag persists in host memory, a second boot previously
+   loaded the original *compressed* stored Japanese ROM directly
+   without its `decompress_mnsg_japan` routine. The integrated
+   overlay now restores `has_compressed_code=true` for
+   `game_id==u8"mnsg.jp"` before **every** stored-ROM load. The
+   runtime still resets the flag to false after actual decompression
+   for compatibility with the existing mod-loading path. On replay,
+   expect `[Goemon JP integrated reset] restoring compressed JP ROM
+   before entrypoint replay.`.
+2. `ultramodern/src/threadqueue.cpp` keeps a native
+   `running_queue_impl` pointer outside RDRAM; old guest OSThread
+   pointers can therefore survive `munmap` and zero-filled
+   reallocation. A seventh generated overlay, now
+   `threadqueue_integrated.cpp`, clears that pointer **only after**
+   Stage12's complete guest/native join proof and before the old
+   RDRAM can be unmapped. Failed proof blocks unmap and restart.
+   Expect `[Goemon JP integrated reset]
+   native_running_queue_cleared=1 stale_head=N`.
+
+Both corrections preserve normal USA builds and the default-off
+experimental flag. The second-generation black screen must be
+retested in Ubuntu; no claim of title-screen recovery until observed.
+The new source test checks both pinned-code modifications, and CI
+compiles all **seven** generated C++ translation units.
 
 ## Ubuntu test (disposable saves only)
 
