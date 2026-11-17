@@ -185,6 +185,11 @@ public:
 #else
         version_string += " [live-preflight-off]";
 #endif
+#ifdef GOEMON_JP_BARRIER_STAGE12_ACTIVE
+        version_string += " [exit-barrier-audit]";
+#else
+        version_string += " [exit-barrier-off]";
+#endif
 #endif
         constructor.Bind("version_number", &version_string);
 
