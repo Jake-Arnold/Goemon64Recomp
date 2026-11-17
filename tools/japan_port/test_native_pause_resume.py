@@ -69,9 +69,14 @@ class NativePauseTests(unittest.TestCase):
         self.assertNotIn("jp_pause_was_held", polling)
         self.assertNotIn("InputState.keys[SDL_SCANCODE_F6]", polling)
         self.assertNotIn("jp_set_guest_paused(!paused)", polling)
+        # Inspect only the F6 branch. The full event filter correctly
+        # contains a separate SDL_QUIT handler on window close.
+        f6_handler = section.split(
+            "// F6 must be handled by the host SDL event pump", 1)[1].split(
+            "// A paused guest no longer polls F8 bindings.", 1)[0]
         for forbidden in ("munmap(", "memset(", "SDL_DestroyWindow(",
-                          "ultramodern::quit()"):
-            self.assertNotIn(forbidden, section)
+                          "ultramodern::quit()", "jp_request_integrated_reset("):
+            self.assertNotIn(forbidden, f6_handler)
 
     def test_f8_while_paused_uses_host_event_pump(self):
         section = self.input.split("bool sdl_event_filter(", 1)[1].split(
