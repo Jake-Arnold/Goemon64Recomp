@@ -1,0 +1,36 @@
+name: Japanese integrated F8 reset source contracts
+
+on:
+  push:
+    branches:
+      - feature/japan-integrated-f8-reset-experimental
+    paths:
+      - 'tools/japan_port/patch_integrated_reset_experiment.py'
+      - 'tools/japan_port/test_integrated_reset_experiment.py'
+      - 'tools/japan_port/test_integrated_reset_gates.cpp'
+      - 'src/game/jp_generation_publisher_gate.hpp'
+      - 'src/game/jp_timer_epoch_clock.hpp'
+      - '.github/workflows/japan-integrated-reset-contract.yml'
+  pull_request:
+    paths:
+      - 'tools/japan_port/**'
+      - 'src/game/jp_generation_publisher_gate.hpp'
+      - 'src/game/jp_timer_epoch_clock.hpp'
+      - '.github/workflows/japan-integrated-reset-contract.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  pinned-generator-and-host-gates:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Fetch pinned open-source runtime only
+        run: git submodule update --init lib/N64ModernRuntime
+      - name: Compile reset generator Python
+        run: python3 -m py_compile tools/japan_port/patch_integrated_reset_experiment.py tools/japan_port/test_integrated_reset_experiment.py
+      - name: Compose all six reset overlays from pinned sources and run double-reset gate unit
+        run: python3 tools/japan_port/test_integrated_reset_experiment.py -v
