@@ -506,6 +506,9 @@ if(GOEMON_BUILD_JAPAN)
     option(GOEMON_JP_TIMER_PUBLISH_STAGE17 "Enable timer producer fence and RDRAM guard on PC exit" OFF)
     option(GOEMON_JP_TIMER_EPOCH_STAGE18 "Enable synchronized JP timer clock with test-only epoch rebase" OFF)
     option(GOEMON_JP_INTEGRATED_F8_RESET_EXPERIMENTAL "Experimental same-process F8 reset (may be unstable; disposable saves only)" OFF)
+    if(GOEMON_JP_INTEGRATED_F8_RESET_EXPERIMENTAL AND NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        message(FATAL_ERROR "Experimental integrated reset currently supports Linux only")
+    endif()
     if(GOEMON_JP_INTEGRATED_F8_RESET_EXPERIMENTAL AND NOT GOEMON_JP_TIMER_EPOCH_STAGE18)
         message(FATAL_ERROR "Integrated reset requires all Stage1-18 prerequisites")
     endif()
@@ -960,7 +963,7 @@ if(GOEMON_BUILD_JAPAN)
         set_property(TARGET ultramodern PROPERTY SOURCES ${JP_STAGE18_TIMER_SOURCES})
         target_sources(ultramodern PRIVATE "${JP_TIMER_GENERATED_DIR}/timer_stage18.cpp")
     endif()
-    # One integrated F8 reset experiment; all 5 generated runtime
+    # One integrated F8 reset experiment; all 6 generated runtime
     # components change together or CMake fails. Default OFF.
     if(GOEMON_JP_INTEGRATED_F8_RESET_EXPERIMENTAL)
         set(JP_INTEGRATED_SCRIPT "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_integrated_reset_experiment.py")
@@ -979,6 +982,7 @@ if(GOEMON_BUILD_JAPAN)
         message(STATUS "${JP_INTEGRATED_OUTPUT}")
         foreach(JP_TARGET_PAIR IN ITEMS
             "ultramodern|threads.cpp|threads_reset.cpp"
+            "ultramodern|mesgqueue.cpp|mesgqueue_integrated.cpp"
             "ultramodern|events.cpp|events_integrated.cpp"
             "ultramodern|timer_stage18.cpp|timer_integrated.cpp"
             "librecomp|pi_stage16.cpp|pi_integrated.cpp"
