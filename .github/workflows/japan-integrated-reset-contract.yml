@@ -29,8 +29,33 @@ jobs:
         with:
           persist-credentials: false
       - name: Fetch pinned open-source runtime only
-        run: git submodule update --init lib/N64ModernRuntime
+        run: git submodule update --init --recursive lib/N64ModernRuntime
       - name: Compile reset generator Python
         run: python3 -m py_compile tools/japan_port/patch_integrated_reset_experiment.py tools/japan_port/test_integrated_reset_experiment.py
       - name: Compose all six reset overlays from pinned sources and run double-reset gate unit
+        env:
+          JP_INTEGRATED_EMIT_DIR: ${{ runner.temp }}/jp-integrated
         run: python3 tools/japan_port/test_integrated_reset_experiment.py -v
+      - name: C++ syntax-check all six generated reset owners
+        run: |
+          set -eu
+          ROOT=lib/N64ModernRuntime
+          CXXFLAGS=(
+            -std=c++20 -fsyntax-only -Wall -Wextra -Wno-unused-parameter
+            -DGOEMON_JP_EXPERIMENTAL_RESET_BACKEND_ACTIVE
+            -I"${ROOT}/ultramodern/include"
+            -I"${ROOT}/librecomp/include"
+            -I"${ROOT}/librecomp/include/librecomp"
+            -I"${ROOT}/librecomp/src"
+            -I"${ROOT}/thirdparty/concurrentqueue"
+            -I"${ROOT}/thirdparty"
+            -I"${ROOT}/N64Recomp/include"
+            -I"${ROOT}/ultramodern/src"
+            -Isrc/game
+            -Iinclude
+          )
+          for name in threads_reset.cpp mesgqueue_integrated.cpp events_integrated.cpp timer_integrated.cpp pi_integrated.cpp recomp_integrated.cpp; do
+            echo "::group::Checking ${name}"
+            g++ "${CXXFLAGS[@]}" "${RUNNER_TEMP}/jp-integrated/${name}"
+            echo "::endgroup::"
+          done
