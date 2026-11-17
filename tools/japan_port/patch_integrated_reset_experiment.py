@@ -23,6 +23,60 @@ def once(src: str, old: str, new: str, label: str) -> str:
     return src.replace(old, new, 1)
 
 
+EXTERNAL_QUEUE_FENCE = r"""// A stale external OSMesgQueue pointer is an RDRAM use-after-free after
+// generation replacement. Close ALL enqueue callers, drain after joins,
+// then reopen with a new generation before any new game boot.
+static goemon_jp::reset::PublisherGate jp_external_message_gate{1};
+
+bool ultramodern::jp_flush_external_messages_after_join(std::uint64_t generation) {
+    if (!jp_external_message_gate.close_for_pc_exit(
+            std::chrono::milliseconds{500})) {
+        return false;
+    }
+    QueuedMessage old;
+    std::uint64_t removed = 0;
+    while (external_messages.try_dequeue(old)) {
+        ++removed;
+    }
+    if (external_messages.size_approx() != 0 ||
+        !jp_external_message_gate.rearm_after_verified_exit(generation, true)) {
+        return false;
+    }
+    std::fprintf(stderr,
+        "[Goemon JP integrated reset] external_queue_drained=1 removed=%llu "
+        "generation=%llu; no stale OSMesgQueue pointers.\\n",
+        static_cast<unsigned long long>(removed),
+        static_cast<unsigned long long>(generation));
+    return true;
+}
+
+"""
+
+
+def messages(src: str) -> str:
+    if "jp_external_message_gate" in src:
+        raise ValueError("External message producer already gated")
+    src = once(src,
+        '#include "ultramodern/ultramodern.hpp"\n',
+        '#include "ultramodern/ultramodern.hpp"\n'
+        '#include "jp_generation_publisher_gate.hpp"\n'
+        '#include <cstdio>\n',
+        "external message gate include")
+    src = once(src,
+        "static moodycamel::BlockingConcurrentQueue<QueuedMessage> external_messages {};\n",
+        "static moodycamel::BlockingConcurrentQueue<QueuedMessage> external_messages {};\n"
+        "namespace ultramodern { bool jp_flush_external_messages_after_join(std::uint64_t); }\n"
+        + EXTERNAL_QUEUE_FENCE,
+        "external queue close, drain and rearm")
+    src = once(src,
+        "void ultramodern::enqueue_external_message(PTR(OSMesgQueue) mq, OSMesg msg, bool jam, bool requeue_if_blocked) {\n",
+        "void ultramodern::enqueue_external_message(PTR(OSMesgQueue) mq, OSMesg msg, bool jam, bool requeue_if_blocked) {\n"
+        "    auto jp_lease = jp_external_message_gate.try_acquire();\n"
+        "    if (!jp_lease) return;\n",
+        "count actual external message enqueue producer")
+    return "// Experimental reset external message queue generation fence.\n" + src
+
+
 GUEST_REARM = r"""// After normal shutdown and a complete worker join, the reset owner may
 // reopen OSThread creation. Never clear the stop flag while any old guest
 // context remains live or its cleaner has not joined.
@@ -239,6 +293,7 @@ def recomp(src: str) -> str:
         "    bool jp_rearm_timer_after_verified_exit(std::uint64_t);\n"
         "    bool jp_rearm_events_after_verified_exit(std::uint64_t);\n"
         "    bool jp_rearm_saving_after_verified_exit();\n"
+        "    bool jp_flush_external_messages_after_join(std::uint64_t);\n"
         "}\n"
         "namespace recomp { bool jp_reset_audio_buffer_after_join(); }\n",
         "integrated ownership declarations")
@@ -264,11 +319,16 @@ def recomp(src: str) -> str:
         "    if (jp_guest_exit_drained &&\n"
         "        ultramodern::jp_timer_exit_joined_stage17()) {\n"
         "    // Free rdram.\n",
+        "    const bool jp_external_queue_drained =\n"
+        "        !jp_integrated_restart_requested.load(std::memory_order_acquire) ||\n"
+        "        (jp_exit_known_joined &&\n"
+        "         ultramodern::jp_flush_external_messages_after_join(\n"
+        "             jp_integrated_generation.load(std::memory_order_acquire)));\n"
         "    bool jp_integrated_rdram_released = false;\n"
         "    if (jp_guest_exit_drained &&\n"
         "        ultramodern::jp_timer_exit_joined_stage17() &&\n"
         "        (!jp_integrated_restart_requested.load(std::memory_order_acquire) ||\n"
-        "         jp_exit_known_joined)) {\n"
+        "         jp_exit_known_joined) && jp_external_queue_drained) {\n"
         "    // Free rdram.\n",
         "never release RDRAM on failed integrated shutdown barrier")
 
@@ -355,6 +415,7 @@ def main() -> None:
     d = a.generated_dir
     changes = [
         ("threads.cpp", "threads_reset.cpp", threads),
+        ("mesgqueue.cpp", "mesgqueue_integrated.cpp", messages),
         ("timer_stage18.cpp", "timer_integrated.cpp", timer),
         ("events.cpp", "events_integrated.cpp", events),
         ("pi_stage16.cpp", "pi_integrated.cpp", saving),
