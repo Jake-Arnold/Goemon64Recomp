@@ -98,7 +98,7 @@ class ExitStage9(unittest.TestCase):
     def test_version_jp_only(self):
         main = (ROOT / "src/main/main.cpp").read_text()
         ui = (ROOT / "src/ui/ui_launcher.cpp").read_text()
-        self.assertIn('version_string = "0.2.18-dev"', main)
+        self.assertIn('version_string = "0.2.19-dev"', main)
         self.assertIn('version_string = "0.2.3-dev"', main)
         self.assertIn('jp_exit_build_mode = " [guest-exit-drain]"', main)
         self.assertIn('version_string += " [guest-exit-drain]"', ui)
