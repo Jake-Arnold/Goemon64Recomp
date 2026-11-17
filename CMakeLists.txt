@@ -503,6 +503,10 @@ if(GOEMON_BUILD_JAPAN)
     option(GOEMON_JP_CONFIG_FENCE_STAGE14 "Enable counted generation config producer fence on PC exit" OFF)
     option(GOEMON_JP_SDL_AUDIO_STAGE15 "Enable SDL audio callback fence and device close on PC exit" OFF)
     option(GOEMON_JP_SAVE_STAGE16 "Enable pending save finalization after worker join on PC exit" OFF)
+    option(GOEMON_JP_TIMER_PUBLISH_STAGE17 "Enable timer producer fence and RDRAM guard on PC exit" OFF)
+    if(GOEMON_JP_TIMER_PUBLISH_STAGE17 AND NOT GOEMON_JP_SAVE_STAGE16)
+        message(FATAL_ERROR "GOEMON_JP_TIMER_PUBLISH_STAGE17 requires GOEMON_JP_SAVE_STAGE16=ON")
+    endif()
     if(GOEMON_JP_SAVE_STAGE16 AND NOT GOEMON_JP_SDL_AUDIO_STAGE15)
         message(FATAL_ERROR "GOEMON_JP_SAVE_STAGE16 requires GOEMON_JP_SDL_AUDIO_STAGE15=ON")
     endif()
@@ -873,6 +877,50 @@ if(GOEMON_BUILD_JAPAN)
         set_property(TARGET librecomp PROPERTY SOURCES ${JP_STAGE12_RECOMP_SOURCES})
         target_sources(librecomp PRIVATE "${JP_TIMER_GENERATED_DIR}/recomp_stage12.cpp")
     endif()
+    # Stage17 composes the Stage1 timer overlay from pinned timer.cpp
+    # and instruments the already generated Stage12 recomp exit source.
+    # Only native PC exit can close the timer publisher fence; F8 observes.
+    if(GOEMON_JP_TIMER_PUBLISH_STAGE17)
+        set(JP_STAGE17_SCRIPT "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_timer_producer_fence_stage17.py")
+        set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+            "${JP_STAGE17_SCRIPT}" "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_timer_runtime.py"
+            "${CMAKE_SOURCE_DIR}/src/game/jp_generation_publisher_gate.hpp")
+        execute_process(
+            COMMAND "${Python3_EXECUTABLE}" "${JP_STAGE17_SCRIPT}"
+                --timer-source "${JP_TIMER_RUNTIME_ROOT}/ultramodern/src/timer.cpp"
+                --stage12-source "${JP_TIMER_GENERATED_DIR}/recomp_stage12.cpp"
+                --output-dir "${JP_TIMER_GENERATED_DIR}"
+            RESULT_VARIABLE JP_STAGE17_RESULT
+            OUTPUT_VARIABLE JP_STAGE17_OUTPUT
+            ERROR_VARIABLE JP_STAGE17_ERROR)
+        if(NOT JP_STAGE17_RESULT EQUAL 0)
+            message(FATAL_ERROR
+                "JP Stage17 timer publisher fence generation failed:\n"
+                "${JP_STAGE17_OUTPUT}\n${JP_STAGE17_ERROR}")
+        endif()
+        message(STATUS "${JP_STAGE17_OUTPUT}")
+
+        get_target_property(JP_STAGE17_TIMER_SOURCES ultramodern SOURCES)
+        list(FIND JP_STAGE17_TIMER_SOURCES
+            "${JP_TIMER_GENERATED_DIR}/timer.cpp" JP_STAGE17_OLD_TIMER)
+        if(JP_STAGE17_OLD_TIMER EQUAL -1)
+            message(FATAL_ERROR "Stage17 requires generated Stage1 timer worker")
+        endif()
+        list(REMOVE_ITEM JP_STAGE17_TIMER_SOURCES "${JP_TIMER_GENERATED_DIR}/timer.cpp")
+        set_property(TARGET ultramodern PROPERTY SOURCES ${JP_STAGE17_TIMER_SOURCES})
+        target_sources(ultramodern PRIVATE "${JP_TIMER_GENERATED_DIR}/timer_stage17.cpp")
+
+        get_target_property(JP_STAGE17_RECOMP_SOURCES librecomp SOURCES)
+        list(FIND JP_STAGE17_RECOMP_SOURCES
+            "${JP_TIMER_GENERATED_DIR}/recomp_stage12.cpp" JP_STAGE17_OLD_RECOMP)
+        if(JP_STAGE17_OLD_RECOMP EQUAL -1)
+            message(FATAL_ERROR "Stage17 requires generated Stage12 exit census")
+        endif()
+        list(REMOVE_ITEM JP_STAGE17_RECOMP_SOURCES
+            "${JP_TIMER_GENERATED_DIR}/recomp_stage12.cpp")
+        set_property(TARGET librecomp PROPERTY SOURCES ${JP_STAGE17_RECOMP_SOURCES})
+        target_sources(librecomp PRIVATE "${JP_TIMER_GENERATED_DIR}/recomp_stage17.cpp")
+    endif()
     # Reuse the existing frontend sources and shared shader/icon build rules.
     get_target_property(JP_SOURCES Goemon64Recompiled SOURCES)
     list(REMOVE_ITEM JP_SOURCES
@@ -935,6 +983,9 @@ if(GOEMON_BUILD_JAPAN)
     endif()
     if(GOEMON_JP_SAVE_STAGE16)
         target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JP_SAVE_STAGE16_ACTIVE)
+    endif()
+    if(GOEMON_JP_TIMER_PUBLISH_STAGE17)
+        target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JP_TIMER_PUBLISH_STAGE17_ACTIVE)
     endif()
     # Regenerate the build-commit identifier on every JP build. The script
     # writes only when content changes; incremental compilation stays fast.
