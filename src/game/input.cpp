@@ -37,6 +37,9 @@ namespace ultramodern {
 }
 void jp_report_sdl_audio_queue();
 #endif
+#ifdef GOEMON_JP_LIVE_STAGE11_ACTIVE
+namespace ultramodern { void jp_report_live_generation_preflight(); }
+#endif
 
 constexpr float axis_threshold = 0.5f;
 
@@ -594,6 +597,10 @@ void recomp::poll_inputs() {
         ultramodern::jp_report_save_worker_lifecycle();
         ultramodern::jp_report_audio_dispatch_lifecycle();
         jp_report_sdl_audio_queue();
+#endif
+#ifdef GOEMON_JP_LIVE_STAGE11_ACTIVE
+        // Live read-only snapshot. NO stop flag, queue drain, reset or exit.
+        ultramodern::jp_report_live_generation_preflight();
 #endif
     }
     reset_was_held = reset_held;
