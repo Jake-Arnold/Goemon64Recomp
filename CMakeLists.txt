@@ -500,6 +500,10 @@ if(GOEMON_BUILD_JAPAN)
     option(GOEMON_JP_LIVE_STAGE11 "Enable read-only live-generation producer preflight on F8" OFF)
     option(GOEMON_JP_BARRIER_STAGE12 "Enable post-join cross-subsystem exit barrier census (not F8)" OFF)
     option(GOEMON_JP_GENERATION_STAGE13 "Enable fail-closed Japanese generation reset admission on F8" OFF)
+    option(GOEMON_JP_CONFIG_FENCE_STAGE14 "Enable counted generation config producer fence on PC exit" OFF)
+    if(GOEMON_JP_CONFIG_FENCE_STAGE14 AND NOT GOEMON_JP_GENERATION_STAGE13)
+        message(FATAL_ERROR "GOEMON_JP_CONFIG_FENCE_STAGE14 requires GOEMON_JP_GENERATION_STAGE13=ON")
+    endif()
     if(GOEMON_JP_GENERATION_STAGE13 AND NOT GOEMON_JP_BARRIER_STAGE12)
         message(FATAL_ERROR "GOEMON_JP_GENERATION_STAGE13 requires GOEMON_JP_BARRIER_STAGE12=ON")
     endif()
@@ -537,7 +541,22 @@ if(GOEMON_BUILD_JAPAN)
         message(FATAL_ERROR "GOEMON_JP_THREAD_STAGE2 requires GOEMON_JP_TIMER_STAGE1=ON")
     endif()
     if(GOEMON_JP_THREAD_STAGE2)
-        if(GOEMON_JP_LIVE_STAGE11)
+        if(GOEMON_JP_CONFIG_FENCE_STAGE14)
+            set(JP_THREAD_SCRIPT "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_config_publisher_fence_stage14.py")
+            set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+                "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_config_publisher_fence_stage14.py"
+                "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_live_preflight_stage11.py"
+                "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_action_drain_stage10.py"
+                "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_guest_exit_stage9.py"
+                "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_graphics_queue_stage8.py"
+                "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_native_events_stage6.py"
+                "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_guest_join_stage5.py"
+                "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_queue_cleaner_stage4.py"
+                "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_guest_quiescence_stage3.py"
+                "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_guest_threads_runtime.py"
+                "${CMAKE_SOURCE_DIR}/src/game/jp_generation_publisher_gate.hpp")
+            target_include_directories(ultramodern PRIVATE "${CMAKE_SOURCE_DIR}/src/game")
+        elseif(GOEMON_JP_LIVE_STAGE11)
             set(JP_THREAD_SCRIPT "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_live_preflight_stage11.py")
             set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
                 "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_live_preflight_stage11.py"
@@ -866,6 +885,9 @@ if(GOEMON_BUILD_JAPAN)
     endif()
     if(GOEMON_JP_GENERATION_STAGE13)
         target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JP_GENERATION_STAGE13_ACTIVE)
+    endif()
+    if(GOEMON_JP_CONFIG_FENCE_STAGE14)
+        target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JP_CONFIG_FENCE_STAGE14_ACTIVE)
     endif()
     # Regenerate the build-commit identifier on every JP build. The script
     # writes only when content changes; incremental compilation stays fast.
