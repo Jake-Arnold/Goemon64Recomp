@@ -60,7 +60,7 @@ class IntegratedResetTests(unittest.TestCase):
             '#ifdef GOEMON_JP_EXPERIMENTAL_RESET_BACKEND_ACTIVE',
             self.front)
         self.assertIn(
-            "target_sources(Goemon64Recompiled PRIVATE\\n"
+            "target_sources(Goemon64Recompiled PRIVATE\n"
             '            "${CMAKE_SOURCE_DIR}/src/main/jp_integrated_audio_unavailable_usa.cpp")',
             self.cmake)
         # The JP target snapshots the USA source list *before* the stub is
@@ -77,9 +77,9 @@ class IntegratedResetTests(unittest.TestCase):
             test_cpp = Path(td) / "test_usa_audio_link.cpp"
             binary = Path(td) / "test_usa_audio_link"
             test_cpp.write_text(
-                "namespace recomp { bool jp_reset_audio_buffer_after_join(); }\\n"
+                "namespace recomp { bool jp_reset_audio_buffer_after_join(); }\n"
                 "int main() { return recomp::jp_reset_audio_buffer_after_join() "
-                "? 1 : 0; }\\n",
+                "? 1 : 0; }\n",
                 encoding="utf-8")
             subprocess.run(
                 [compiler, "-std=c++20", "-Wall", "-Wextra", "-Werror",
