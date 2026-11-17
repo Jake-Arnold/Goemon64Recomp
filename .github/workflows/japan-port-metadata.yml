@@ -17,6 +17,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Fetch pinned N64ModernRuntime for native source tests
+        run: git submodule update --init --recursive lib/N64ModernRuntime
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
