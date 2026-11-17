@@ -87,10 +87,14 @@ class PublisherFenceStage14(unittest.TestCase):
 
     def test_close_permanent_and_generation_tagged(self):
         for token in ("class PublisherGate final", "close_for_pc_exit(",
-                      "open_ = false;", "in_flight_ == 0", "const std::uint64_t generation_"):
+                      "open_ = false;", "in_flight_ == 0", "std::uint64_t generation_"):
             self.assertIn(token, self.header)
         self.assertNotIn("reopen(", self.header)
-        self.assertNotIn("rearm(", self.header)
+        # Production rearm is restricted to a separately opted-in,
+        # post-join integrated backend; default Stage14 remains exit-only.
+        self.assertIn("#ifdef GOEMON_JP_EXPERIMENTAL_RESET_BACKEND_ACTIVE", self.header)
+        self.assertIn("rearm_after_verified_exit(", self.header)
+        self.assertIn("!all_old_workers_joined || open_ || in_flight_ != 0", self.header)
 
     def test_raii_noncopyable_leases(self):
         for token in ("~Permit() { release(); }", "Permit(const Permit&) = delete;",
