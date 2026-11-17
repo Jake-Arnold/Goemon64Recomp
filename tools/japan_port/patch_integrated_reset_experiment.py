@@ -44,7 +44,7 @@ bool ultramodern::jp_flush_external_messages_after_join(std::uint64_t generation
     }
     std::fprintf(stderr,
         "[Goemon JP integrated reset] external_queue_drained=1 removed=%llu "
-        "generation=%llu; no stale OSMesgQueue pointers.\\n",
+        "generation=%llu; no stale OSMesgQueue pointers.\n",
         static_cast<unsigned long long>(removed),
         static_cast<unsigned long long>(generation));
     return true;
