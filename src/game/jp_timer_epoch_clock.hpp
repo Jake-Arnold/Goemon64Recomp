@@ -1,8 +1,8 @@
 #pragma once
 
 // Japanese recomp Stage18: synchronized timer timebase per guest generation.
-// Production exposes time reads and osSetTime only. A generation transition
-// is deliberately test-only until the full guest/native reset backend exists.
+// Normal builds expose time reads and osSetTime only. Experimental builds
+// expose a guarded rebase after the complete old-generation exit barrier.
 #include <chrono>
 #include <cstdint>
 #include <limits>
@@ -78,15 +78,9 @@ public:
 #endif
 
 #ifdef GOEMON_JP_STAGE18_TEST_REBASE
+    // Test-only alias to the same proof shape used by the experimental
+    // runtime rearm. Unstable gameplay feature is separately opt-in.
     using TestStopProof = StopProof;
-    // Host-test-only. No production build can change generation here;
-    // a real rearm will need validated worker, publisher and memory proofs.
-    struct TestStopProof {
-        bool worker_joined;
-        bool producers_closed;
-        bool permits_drained;
-        bool guest_refs_released;
-    };
     [[nodiscard]] bool rebase_for_test(std::uint64_t expected_generation,
                                        TestStopProof proof) noexcept {
         return try_rebase(expected_generation, proof);
