@@ -32,17 +32,17 @@ public:
 
     [[nodiscard]] std::uint64_t ticks_now() const noexcept {
         std::lock_guard<std::mutex> lock(mutex_);
-        return ticks_at(Clock::now());
+        return ticks_at(effective_now());
     }
 
     [[nodiscard]] std::uint64_t guest_time() const noexcept {
         std::lock_guard<std::mutex> lock(mutex_);
-        return ticks_at(Clock::now()) - guest_time_offset_;
+        return ticks_at(effective_now()) - guest_time_offset_;
     }
 
     void set_guest_time(std::uint64_t requested_ticks) noexcept {
         std::lock_guard<std::mutex> lock(mutex_);
-        guest_time_offset_ = ticks_at(Clock::now()) - requested_ticks;
+        guest_time_offset_ = ticks_at(effective_now()) - requested_ticks;
     }
 
     [[nodiscard]] TimePoint start() const noexcept {
@@ -52,13 +52,36 @@ public:
 
     [[nodiscard]] Duration since_start() const noexcept {
         std::lock_guard<std::mutex> lock(mutex_);
-        return Clock::now() - start_;
+        return effective_now() - start_;
     }
 
     [[nodiscard]] Snapshot snapshot() const noexcept {
         std::lock_guard<std::mutex> lock(mutex_);
-        auto current = ticks_at(Clock::now());
+        auto current = ticks_at(effective_now());
         return {generation_, current, current - guest_time_offset_, start_};
+    }
+
+    // Freeze N64 logical time, not wall time. Resume shifts the origin so
+    // pending VI and timer deadlines cannot catch up for the paused period.
+    [[nodiscard]] bool set_paused(bool pause) noexcept {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (paused_ == pause) {
+            return false;
+        }
+        const auto now = Clock::now();
+        if (pause) {
+            paused_at_ = now;
+            paused_ = true;
+        } else {
+            start_ += now - paused_at_;
+            paused_ = false;
+        }
+        return true;
+    }
+
+    [[nodiscard]] bool is_paused() const noexcept {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return paused_;
     }
 
     // A rebase is only legal after the old guest memory has no owners.
@@ -88,6 +111,10 @@ public:
 #endif
 
 private:
+    [[nodiscard]] TimePoint effective_now() const noexcept {
+        return paused_ ? paused_at_ : Clock::now();
+    }
+
     [[nodiscard]] bool try_rebase(std::uint64_t expected_generation,
                                   StopProof proof) noexcept {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -98,6 +125,8 @@ private:
             return false;
         }
         start_ = Clock::now();
+        paused_at_ = start_;
+        paused_ = false;
         guest_time_offset_ = 0;
         ++generation_;
         return true;
@@ -113,6 +142,8 @@ private:
     const std::uint64_t counter_per_ms_;
     std::uint64_t generation_;
     TimePoint start_;
+    TimePoint paused_at_{};
+    bool paused_ = false;
     std::uint64_t guest_time_offset_ = 0;
 };
 
