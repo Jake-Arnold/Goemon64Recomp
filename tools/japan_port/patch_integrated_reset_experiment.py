@@ -322,6 +322,23 @@ def recomp(src: str) -> str:
         "void ultramodern::quit() {\n",
         RESET_OWNER + "void ultramodern::quit() {\n",
         "integrated F8 request ownership")
+    # N64ModernRuntime::load_stored_rom permanently flips the registered
+    # GameEntry.has_compressed_code flag to false after its first load.
+    # Unlike the initial boot, a generation-2 load would then feed the raw
+    # compressed stored ROM straight to overlays/guest memory. Restore the
+    # flag before EACH Japanese ROM load, while preserving its transition
+    # back to false before mod loading in the original function.
+    src = once(src,
+        "    std::vector<uint8_t> stored_rom_data = read_file(config_path / find_it->second.stored_filename());\n",
+        "    std::vector<uint8_t> stored_rom_data = read_file(config_path / find_it->second.stored_filename());\n"
+        "    if (game_id == u8\\"mnsg.jp\\" && find_it->second.decompression_routine != nullptr) {\n"
+        "        if (!find_it->second.has_compressed_code) {\n"
+        "            std::fprintf(stderr,\n"
+        "                \\"[Goemon JP integrated reset] restoring compressed JP ROM before entrypoint replay.\\\\n\\");\n"
+        "        }\n"
+        "        find_it->second.has_compressed_code = true;\n"
+        "    }\n",
+        "restore JP decompression across repeated guest generations")
     src = once(src,
         "    // Allocate rdram without comitting it. Use a platform-specific virtual allocation function\n",
         "    // One app process and window; each loop body owns one fresh RDRAM.\n"
