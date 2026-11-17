@@ -155,12 +155,18 @@ in-process owner; the continuous same-PID session and preserved
 window ownership corroborate it. There is no evidence of `exec`
 or a second process launch.
 
-**External toolkit:** the user reports that its connection remains
-live across resets. Since `munmap` and `mmap` replace RDRAM, this
-does not by itself establish whether the toolkit follows the new
-mapping/address. Verify that memory reads and writes operate on
-current guest values after multiple resets; a retained PID/process
-handle is insufficient to prove the RDRAM base is unchanged.
+**External toolkit — live read test confirmed by user:** after F8,
+the toolkit's displayed **health value drops to 0 during guest
+initialization**, then returns to its correct, nonzero gameplay value
+once the restarted game loads. The toolkit does this **without
+reconnecting**. This is evidence of changing live game state across
+a successful in-process reset, not merely retaining the original PID
+or displaying a frozen snapshot. Since `munmap` and `mmap`
+replace guest RDRAM, the observation does **not** by itself prove
+that the host RDRAM base address remains identical, nor has
+**post-reset write functionality** been independently verified.
+Read-path continuity is observed; pointer identity and write-path
+correctness remain distinct checks.
 
 **Still unverified:** the observed save-finalize path was always
 `mutated=0 final_attempt=0`; no dirty-save persistence/durability
