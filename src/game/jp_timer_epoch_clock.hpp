@@ -61,7 +61,24 @@ public:
         return {generation_, current, current - guest_time_offset_, start_};
     }
 
+    // A rebase is only legal after the old guest memory has no owners.
+    // The host reset controller supplies these predicates from real joins.
+    struct StopProof {
+        bool worker_joined;
+        bool producers_closed;
+        bool permits_drained;
+        bool guest_refs_released;
+    };
+
+#ifdef GOEMON_JP_EXPERIMENTAL_RESET_BACKEND_ACTIVE
+    [[nodiscard]] bool rebase_after_verified_exit(
+        std::uint64_t expected_generation, StopProof proof) noexcept {
+        return try_rebase(expected_generation, proof);
+    }
+#endif
+
 #ifdef GOEMON_JP_STAGE18_TEST_REBASE
+    using TestStopProof = StopProof;
     // Host-test-only. No production build can change generation here;
     // a real rearm will need validated worker, publisher and memory proofs.
     struct TestStopProof {
@@ -72,6 +89,13 @@ public:
     };
     [[nodiscard]] bool rebase_for_test(std::uint64_t expected_generation,
                                        TestStopProof proof) noexcept {
+        return try_rebase(expected_generation, proof);
+    }
+#endif
+
+private:
+    [[nodiscard]] bool try_rebase(std::uint64_t expected_generation,
+                                  StopProof proof) noexcept {
         std::lock_guard<std::mutex> lock(mutex_);
         if (generation_ != expected_generation ||
             generation_ == std::numeric_limits<std::uint64_t>::max() ||
@@ -84,9 +108,7 @@ public:
         ++generation_;
         return true;
     }
-#endif
 
-private:
     [[nodiscard]] std::uint64_t ticks_at(TimePoint t) const noexcept {
         const std::uint64_t micros = static_cast<std::uint64_t>(
             std::chrono::duration_cast<std::chrono::microseconds>(t - start_).count());
