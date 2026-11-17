@@ -1,0 +1,81 @@
+name: Japanese F6 native pause/resume contracts
+
+on:
+  push:
+    branches:
+      - feature/japan-native-f6-pause-resume
+  pull_request:
+    paths:
+      - 'tools/japan_port/**'
+      - 'src/game/jp_timer_epoch_clock.hpp'
+      - 'src/game/jp_pause_controller.hpp'
+      - 'src/game/input.cpp'
+      - 'src/main/main.cpp'
+      - 'CMakeLists.txt'
+      - '.github/workflows/japan-native-pause-resume.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  pause-checkpoints:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Fetch pinned runtime and its dependencies
+        run: git submodule update --init --recursive lib/N64ModernRuntime
+      - name: Python generator syntax
+        run: |
+          python3 -m py_compile \
+            tools/japan_port/patch_native_pause_resume.py \
+            tools/japan_port/test_native_pause_resume.py
+      - name: Compose integrated reset baseline (seven sources)
+        env:
+          JP_INTEGRATED_EMIT_DIR: ${{ runner.temp }}/jp-pause-baseline
+        run: python3 tools/japan_port/test_integrated_reset_experiment.py -v
+      - name: Run F6 tests and generate final native owners
+        env:
+          JP_PAUSE_INPUT_DIR: ${{ runner.temp }}/jp-pause-baseline
+          JP_PAUSE_EMIT_DIR: ${{ runner.temp }}/jp-pause-built
+        run: python3 tools/japan_port/test_native_pause_resume.py -v
+      - name: Native C++ syntax-check all seven final guest/runtime owners
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT=lib/N64ModernRuntime
+          printf '#pragma once\n#define MINIZ_EXPORT\n#define MINIZ_NO_EXPORT\n' \
+            > "${RUNNER_TEMP}/jp-pause-built/miniz_export.h"
+          CXXFLAGS=(
+            -std=c++20 -fsyntax-only -Wall -Wextra -Wno-unused-parameter
+            -DGOEMON_JP_EXPERIMENTAL_RESET_BACKEND_ACTIVE
+            -I"${RUNNER_TEMP}/jp-pause-built"
+            -I"${ROOT}/ultramodern/include"
+            -I"${ROOT}/librecomp/include"
+            -I"${ROOT}/librecomp/include/librecomp"
+            -I"${ROOT}/librecomp/src"
+            -I"${ROOT}/thirdparty/concurrentqueue"
+            -I"${ROOT}/thirdparty/miniz"
+            -I"${ROOT}/thirdparty"
+            -I"${ROOT}/N64Recomp/include"
+            -I"${ROOT}/N64Recomp/lib/rabbitizer/include"
+            -I"${ROOT}/N64Recomp/lib/rabbitizer/cplusplus/include"
+            -I"${ROOT}/N64Recomp/lib/fmt/include"
+            -I"${ROOT}/N64Recomp/lib/tomlplusplus/include"
+            -I"${ROOT}/ultramodern/src"
+            -Isrc/game
+            -Iinclude
+          )
+          for file in \
+            "${RUNNER_TEMP}/jp-pause-built/timer_pause.cpp" \
+            "${RUNNER_TEMP}/jp-pause-built/events_pause.cpp" \
+            "${RUNNER_TEMP}/jp-pause-built/mesgqueue_pause.cpp" \
+            "${RUNNER_TEMP}/jp-pause-built/threads_pause.cpp" \
+            "${RUNNER_TEMP}/jp-pause-built/recomp_pause.cpp" \
+            "${RUNNER_TEMP}/jp-pause-baseline/threadqueue_integrated.cpp" \
+            "${RUNNER_TEMP}/jp-pause-baseline/pi_integrated.cpp"; do
+            echo "::group::C++ $file"
+            g++ "${CXXFLAGS[@]}" "$file"
+            echo "::endgroup::"
+          done
