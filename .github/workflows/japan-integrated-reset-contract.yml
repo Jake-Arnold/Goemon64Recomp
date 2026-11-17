@@ -40,7 +40,11 @@ jobs:
         run: |
           set -eu
           ROOT=lib/N64ModernRuntime
+          # CMake normally generates this miniz export header in its build
+          # tree; source-only compile needs a neutral static-build stub.
+          printf '#pragma once\n#define MINIZ_EXPORT\n#define MINIZ_NO_EXPORT\n' > "${RUNNER_TEMP}/jp-integrated/miniz_export.h"
           CXXFLAGS=(
+            -I"${RUNNER_TEMP}/jp-integrated"
             -std=c++20 -fsyntax-only -Wall -Wextra -Wno-unused-parameter
             -DGOEMON_JP_EXPERIMENTAL_RESET_BACKEND_ACTIVE
             -I"${ROOT}/ultramodern/include"
