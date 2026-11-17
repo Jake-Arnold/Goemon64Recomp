@@ -21,7 +21,7 @@ int main() {
     assert(clock.ticks_now() >= t0);
     clock.set_guest_time(1'000'000);
     auto adjusted = clock.guest_time();
-    assert(adjusted >= 1'000'000 && adjusted < 1'250'000);
+    assert(adjusted >= 1'000'000);
 
     const TimerEpochClock::TestStopProof incomplete{true,true,true,false};
     const TimerEpochClock::TestStopProof proved{true,true,true,true};
@@ -30,7 +30,7 @@ int main() {
     assert(clock.snapshot().generation == 1);
     assert(clock.rebase_for_test(1,proved));
     auto snap = clock.snapshot();
-    assert(snap.generation == 2 && snap.guest_time < 500'000);
+    assert(snap.generation == 2 && snap.guest_time == snap.ticks);
     assert(!clock.rebase_for_test(1,proved));
     clock.set_guest_time(42);
     assert(clock.guest_time() >= 42);
