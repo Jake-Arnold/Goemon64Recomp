@@ -215,6 +215,11 @@ public:
 #else
         version_string += " [timer-publisher-fence-off]";
 #endif
+#ifdef GOEMON_JP_TIMER_EPOCH_STAGE18_ACTIVE
+        version_string += " [timer-epoch-clock]";
+#else
+        version_string += " [timer-epoch-off]";
+#endif
 #endif
         constructor.Bind("version_number", &version_string);
 
