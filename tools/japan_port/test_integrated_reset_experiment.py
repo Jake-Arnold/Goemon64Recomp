@@ -27,7 +27,7 @@ class IntegratedResetTests(unittest.TestCase):
 
     def test_default_off_and_requires_stage18(self):
         self.assertIn('option(GOEMON_JP_INTEGRATED_F8_RESET_EXPERIMENTAL', self.cmake)
-        self.assertIn(' " OFF)', self.cmake)
+        self.assertIn('option(GOEMON_JP_INTEGRATED_F8_RESET_EXPERIMENTAL "Experimental same-process F8 reset (may be unstable; disposable saves only)" OFF)', self.cmake)
         self.assertIn("GOEMON_JP_INTEGRATED_F8_RESET_EXPERIMENTAL AND NOT GOEMON_JP_TIMER_EPOCH_STAGE18", self.cmake)
 
     def test_six_generated_runtime_owners_together(self):
@@ -103,6 +103,66 @@ class IntegratedResetTests(unittest.TestCase):
         self.assertIn("jp_integrated_rdram_released", texts[5])
         self.assertIn("jp_external_queue_drained", texts[5])
         self.assertIn("for (;;) {", texts[5])
+
+    def test_actual_pinned_runtime_generator_composition(self):
+        # Exercise all six generated overlays from the actual pinned
+        # N64ModernRuntime checkout; the old tests checked strings only.
+        runtime = ROOT / "lib/N64ModernRuntime"
+        inputs = {
+            "threads": runtime / "ultramodern/src/threads.cpp",
+            "messages": runtime / "ultramodern/src/mesgqueue.cpp",
+            "events": runtime / "ultramodern/src/events.cpp",
+            "timer": runtime / "ultramodern/src/timer.cpp",
+            "saving": runtime / "librecomp/src/pi.cpp",
+            "recomp": runtime / "librecomp/src/recomp.cpp",
+        }
+        if not all(path.is_file() for path in inputs.values()):
+            self.skipTest("Requires pinned N64ModernRuntime checkout")
+        import importlib.util
+
+        def module(name, filename):
+            spec = importlib.util.spec_from_file_location(
+                name, ROOT / "tools/japan_port" / filename)
+            assert spec and spec.loader
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            return mod
+
+        stage9 = module("jp_reset_stage9_test", "patch_guest_exit_stage9.py")
+        stage14 = module("jp_reset_stage14_test", "patch_config_publisher_fence_stage14.py")
+        stage12 = module("jp_reset_stage12_test", "patch_exit_barrier_stage12.py")
+        stage16 = module("jp_reset_stage16_test", "patch_save_finalize_stage16.py")
+        stage17 = module("jp_reset_stage17_test", "patch_timer_producer_fence_stage17.py")
+        stage18 = module("jp_reset_stage18_test", "patch_timer_epoch_stage18.py")
+        integrated = module("jp_reset_integrated_test", "patch_integrated_reset_experiment.py")
+
+        original = {key: path.read_text(encoding="utf-8")
+                    for key, path in inputs.items()}
+        generated = {
+            "threads": stage9.instrument_threads(original["threads"]),
+            "messages": stage9.stage8.stage6.stage5.stage4.instrument_messages(original["messages"]),
+            "events": stage14.instrument_events(original["events"]),
+            "timer": stage18.instrument_stage17_timer(
+                stage17.instrument_timer(original["timer"])),
+            "saving": stage16.instrument_pi(original["saving"]),
+            "recomp": stage17.instrument_recomp_after_stage12(
+                stage12.instrument_recomp_stage7(original["recomp"])),
+        }
+        methods = {
+            "threads": integrated.threads,
+            "messages": integrated.messages,
+            "events": integrated.events,
+            "timer": integrated.timer,
+            "saving": integrated.saving,
+            "recomp": integrated.recomp,
+        }
+        for key, transform in methods.items():
+            with self.subTest(component=key):
+                result = transform(generated[key])
+                self.assertGreater(len(result), 500)
+                self.assertIn("// Experimental integrated", result)
+                with self.assertRaisesRegex(ValueError, "already"):
+                    transform(result)
 
     def test_host_double_reboot_gate_regression(self):
         compiler = shutil.which("g++") or shutil.which("c++")
