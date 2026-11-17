@@ -312,6 +312,31 @@ static SDL_AudioDeviceID audio_device = 0;
 // Only normal app return may close it; F8 does not change this state.
 static goemon_jp::reset::PublisherGate jp_sdl_audio_gate{1};
 #endif
+#ifdef GOEMON_JP_NATIVE_F6_PAUSE_ACTIVE
+namespace recomp {
+void jp_set_audio_paused(bool pause) {
+    // Pause the existing SDL queue. Keep its bytes and device, so on
+    // resume playback continues instead of losing an audio generation.
+    if (audio_device != 0) {
+        SDL_PauseAudioDevice(audio_device, pause ? 1 : 0);
+    }
+    // The window is deliberately NOT hidden/destroyed during guest pause.
+    static std::string saved_title;
+    if (window != nullptr) {
+        if (pause) {
+            if (saved_title.empty()) {
+                saved_title = SDL_GetWindowTitle(window);
+            }
+            SDL_SetWindowTitle(window, (saved_title + " [PAUSED — F6]").c_str());
+        } else if (!saved_title.empty()) {
+            SDL_SetWindowTitle(window, saved_title.c_str());
+            saved_title.clear();
+        }
+    }
+}
+} // namespace recomp
+#endif
+
 #ifdef GOEMON_JP_EXPERIMENTAL_RESET_BACKEND_ACTIVE
 namespace recomp {
 bool jp_reset_audio_buffer_after_join() {
