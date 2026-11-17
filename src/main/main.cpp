@@ -928,7 +928,7 @@ int main(int argc, char** argv) {
         "[Goemon JP SDL audio exit stage15] permit_drained=%u "
         "accepted=%llu rejected=%llu inflight=%llu queued_before=%u "
         "queued_after=%u device_closed=%u confirmed=%u; "
-        "PC exit only, no live reset or generation rearm.\\n",
+        "PC exit only, no live reset or generation rearm.\n",
         static_cast<unsigned>(jp_audio_leases_drained),
         static_cast<unsigned long long>(jp_audio_exit_state.accepted),
         static_cast<unsigned long long>(jp_audio_exit_state.rejected),
