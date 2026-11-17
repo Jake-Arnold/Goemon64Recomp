@@ -329,15 +329,15 @@ def recomp(src: str) -> str:
     # flag before EACH Japanese ROM load, while preserving its transition
     # back to false before mod loading in the original function.
     src = once(src,
-        "    std::vector<uint8_t> stored_rom_data = read_file(config_path / find_it->second.stored_filename());\n",
-        "    std::vector<uint8_t> stored_rom_data = read_file(config_path / find_it->second.stored_filename());\n"
-        "    if (game_id == u8\\"mnsg.jp\\" && find_it->second.decompression_routine != nullptr) {\n"
-        "        if (!find_it->second.has_compressed_code) {\n"
-        "            std::fprintf(stderr,\n"
-        "                \\"[Goemon JP integrated reset] restoring compressed JP ROM before entrypoint replay.\\\\n\\");\n"
-        "        }\n"
-        "        find_it->second.has_compressed_code = true;\n"
-        "    }\n",
+        '    std::vector<uint8_t> stored_rom_data = read_file(config_path / find_it->second.stored_filename());\n',
+        '    std::vector<uint8_t> stored_rom_data = read_file(config_path / find_it->second.stored_filename());\n'
+        '    if (game_id == u8"mnsg.jp" && find_it->second.decompression_routine != nullptr) {\n'
+        '        if (!find_it->second.has_compressed_code) {\n'
+        '            std::fprintf(stderr,\n'
+        '                "[Goemon JP integrated reset] restoring compressed JP ROM before entrypoint replay.\\n");\n'
+        '        }\n'
+        '        find_it->second.has_compressed_code = true;\n'
+        '    }\n',
         "restore JP decompression across repeated guest generations")
     src = once(src,
         "    // Allocate rdram without comitting it. Use a platform-specific virtual allocation function\n",
