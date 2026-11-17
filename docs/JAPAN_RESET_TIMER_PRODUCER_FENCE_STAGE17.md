@@ -70,13 +70,13 @@ the worker is restartable. The Stage12 string
 ## Expected normal-exit diagnostic
 
 ```text
-[Goemon JP timer exit stage17] producers_drained=1 worker_joined=1 open=0 inflight=0 accepted=N rejected=N safe_to_unmap=1 epoch_rearm=unproven; normal PC exit only.
+[Goemon JP timer exit stage17] producers_drained=1 worker_joined=1 open=0 inflight=0 accepted=N rejected=N timer_safe=1 epoch_rearm=unproven; normal PC exit only.
 ```
 
 This should precede the existing
 `[Goemon JP runtime] Timer worker joined cleanly.`, Stage12
 `known_joined=1`, and the Stage15 SDL closure.
-`safe_to_unmap=1` proves **only the timer producer/worker part**,
+`timer_safe=1` proves **only the timer producer/worker part**,
 not the entire RDRAM generation reset.
 
 If this stage fails, the RDRAM must not be unmapped based solely on
@@ -111,7 +111,7 @@ cmake --build build-generated/japan-native-game \
 
 During play, press F8 once. Confirm Stage17 `open=1 f8_close=0`
 and normal gameplay proceeds. Exit normally. Confirm Stage17
-`producers_drained=1 worker_joined=1 safe_to_unmap=1`, Stage12
+`producers_drained=1 worker_joined=1 timer_safe=1`, Stage12
 `known_joined=1`, and Stage15 `confirmed=1`.
 
 ## Verification limits
