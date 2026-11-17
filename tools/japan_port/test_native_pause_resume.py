@@ -67,7 +67,8 @@ class NativePauseTests(unittest.TestCase):
         self.assertIn("return false; // Host hotkey is not a guest/UI key.", section)
         polling = self.input.split("void recomp::poll_inputs() {", 1)[1]
         self.assertNotIn("jp_pause_was_held", polling)
-        self.assertNotIn("SDL_SCANCODE_F6", polling)
+        self.assertNotIn("InputState.keys[SDL_SCANCODE_F6]", polling)
+        self.assertNotIn("jp_set_guest_paused(!paused)", polling)
         for forbidden in ("munmap(", "memset(", "SDL_DestroyWindow(",
                           "ultramodern::quit()"):
             self.assertNotIn(forbidden, section)
