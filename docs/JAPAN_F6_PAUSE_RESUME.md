@@ -63,6 +63,40 @@ rather than every experimental JP feature-on-feature PR. The
 dedicated F6 workflow runs once per PR revision, not once each
 for push and PR. No old failed history is erased.
 
+## Confirmed Ubuntu F6 gameplay resume — 17 November 2026
+
+**LIVE SUCCESS:** The user reports pause/resume now works perfectly
+after the SDL-event-loop hotkey fix on `20ad0b39ab85`. Their native
+JP session contains **12 consecutive `PAUSED → RUNNING` F6 pairs**
+within guest **generation 2**, after a verified
+`generation=2 result=REARMED pid=unchanged window=preserved
+next_boot=1` reset and the repeated Japanese ROM decompression
+and heap initialization.
+
+The same game generation is recorded for every toggle;
+**no extra process launch, RDRAM reallocation, or additional guest
+generation** is evidenced between the reported pauses. For all 12
+pairs, the running timestamp is only **188–516 N64 ticks** after the
+paused timestamp, showing that the guest logical time is not
+advancing by the whole real-world pause interval. User reports
+normal gameplay resumes correctly on each F6 press. This
+validates the functional F6 pause/resume path after an F8 reset,
+including repeatability.
+
+**Not yet separately demonstrated by this excerpt:** full native
+exit while F6-paused; F8 pressed *while still paused* (rather than
+F6 used after an ordinary F8); exact audio continuity and real
+guest timer delivery after long pauses; proof that every native
+instruction path is quiescent for arbitrary save-state capture.
+Keep the feature experimental and PR draft until those distinct
+cases are checked. Do not conflate source/CI tests with live
+save-state readiness.
+
+**Relevant CI:** All checks passed on `20ad0b39ab85`: F6
+contract run `44158323044`, F8 contract run `44158323081`,
+and Japan metadata run `44158323027` (402 tests, 2 skipped).
+No cross-platform integration build is claimed.
+
 ## What is frozen
 
 - N64 counter and guest time share a synchronized paused clock. While
