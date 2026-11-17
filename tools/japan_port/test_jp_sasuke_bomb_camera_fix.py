@@ -146,7 +146,7 @@ class SasukeBombCameraTests(unittest.TestCase):
     def test_version_isolated_from_usa(self):
         root = Path(__file__).resolve().parents[2]
         main = (root / "src/main/main.cpp").read_text()
-        self.assertIn('version_string = "0.2.17-dev"', main)
+        self.assertIn('version_string = "0.2.25-dev"', main)
         self.assertIn('version_string = "0.2.3-dev"', main)
 
 
