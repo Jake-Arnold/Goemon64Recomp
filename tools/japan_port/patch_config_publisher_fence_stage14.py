@@ -67,14 +67,6 @@ def instrument_events(original: str) -> str:
     )
     src = stage10.once(
         src,
-        "bool ultramodern::jp_drain_action_queue_after_pc_exit(bool all_guests_joined) {\n"
-        "    if (!all_guests_joined ||",
-        "bool ultramodern::jp_drain_action_queue_after_pc_exit(bool all_guests_joined) {\n"
-        "    if (!all_guests_joined ||",
-        "stage14 exit-drain function anchored",  # intentionally no edit: validates placement
-    )
-    src = stage10.once(
-        src,
         "        return false;\n"
         "    }\n"
         "    std::lock_guard<std::mutex> lock(jp_config_action_publish_mutex);\n"
