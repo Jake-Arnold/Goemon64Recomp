@@ -51,6 +51,7 @@ def timer(src: str) -> str:
         '#include "jp_timer_epoch_clock.hpp"\n',
         '#include "jp_timer_epoch_clock.hpp"\n'
         '#include "jp_pause_controller.hpp"\n'
+        'extern std::atomic_bool exited;\n'
         'namespace ultramodern {\n'
         '    bool jp_set_guest_paused(bool);\n'
         '    bool jp_guest_is_paused();\n'
@@ -61,9 +62,9 @@ def timer(src: str) -> str:
         PAUSE_TIMER_API + 'void ultramodern::jp_report_timer_epoch_stage18() {\n',
         "host pause state and clock setter")
     src = once(src,
-        '    while (true) {\n'
+        '    while (!shutdown_requested) {\n'
         '        // Empty the action queue\n',
-        '    while (true) {\n'
+        '    while (!shutdown_requested) {\n'
         '        // Timer actions and messages remain pending during pause.\n'
         '        // Exit/reset first releases the gate so shutdown is still joined.\n'
         '        (void)goemon_jp::pause::controller().wait_if_paused(exited);\n'
@@ -145,6 +146,7 @@ def messages(src: str) -> str:
         '#include "ultramodern/ultramodern.hpp"\n',
         '#include "ultramodern/ultramodern.hpp"\n'
         '#include "jp_pause_controller.hpp"\n',
+        'extern std::atomic_bool exited;\n',
         "external N64 message pause include")
     src = once(src,
         'void dequeue_external_messages(RDRAM_ARG1) {\n',
