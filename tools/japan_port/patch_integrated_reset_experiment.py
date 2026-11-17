@@ -90,6 +90,45 @@ def messages(src: str) -> str:
     return "// Experimental reset external message queue generation fence.\n" + src
 
 
+SCHEDULER_RESET = r"""// A native pointer to an old OSThread can outlive joined guests.
+// Allocating zeroed RDRAM does NOT reset this process-static queue head.
+// The reset owner invokes this only after all old guest/native joins.
+namespace ultramodern {
+bool jp_clear_native_running_queue_after_verified_exit(bool joined);
+}
+
+bool ultramodern::jp_clear_native_running_queue_after_verified_exit(
+        bool joined) {
+    if (!joined) {
+        return false;
+    }
+    const bool stale = running_queue_impl != NULLPTR;
+    running_queue_impl = NULLPTR;
+    std::fprintf(stderr,
+        "[Goemon JP integrated reset] native_running_queue_cleared=1 "
+        "stale_head=%u; old-generation scheduler references released.\n",
+        static_cast<unsigned>(stale));
+    return true;
+}
+
+"""
+
+
+def scheduler(src: str) -> str:
+    if "jp_clear_native_running_queue_after_verified_exit" in src:
+        raise ValueError("Native scheduler queue already instrumented")
+    src = once(src,
+        "#include <cassert>\n",
+        "#include <cassert>\n#include <cstdio>\n",
+        "scheduler reset diagnostic include")
+    src = once(src,
+        "static PTR(OSThread) running_queue_impl = NULLPTR;\n",
+        "static PTR(OSThread) running_queue_impl = NULLPTR;\n" +
+        SCHEDULER_RESET,
+        "clear persistent scheduler head after all guest/native joins")
+    return "// Experimental integrated reset persistent native scheduler queue.\n" + src
+
+
 GUEST_REARM = r"""// After normal shutdown and a complete worker join, the reset owner may
 // reopen OSThread creation. Never clear the stop flag while any old guest
 // context remains live or its cleaner has not joined.
@@ -313,6 +352,7 @@ def recomp(src: str) -> str:
         "    bool jp_rearm_timer_after_verified_exit(std::uint64_t);\n"
         "    bool jp_rearm_events_after_verified_exit(std::uint64_t);\n"
         "    bool jp_rearm_saving_after_verified_exit();\n"
+        "    bool jp_clear_native_running_queue_after_verified_exit(bool);\n"
         "    bool jp_flush_external_messages_after_join(std::uint64_t);\n"
         "    bool jp_rearm_external_messages_after_verified_exit(std::uint64_t);\n"
         "}\n"
@@ -357,6 +397,10 @@ def recomp(src: str) -> str:
         "    if (jp_guest_exit_drained &&\n"
         "        ultramodern::jp_timer_exit_joined_stage17()) {\n"
         "    // Free rdram.\n",
+        "    const bool jp_native_scheduler_queue_cleared =\n"
+        "        !jp_integrated_restart_requested.load(std::memory_order_acquire) ||\n"
+        "        ultramodern::jp_clear_native_running_queue_after_verified_exit(\n"
+        "            jp_exit_known_joined && jp_guest_exit_drained);\n"
         "    const bool jp_external_queue_drained =\n"
         "        !jp_integrated_restart_requested.load(std::memory_order_acquire) ||\n"
         "        (jp_exit_known_joined &&\n"
@@ -366,7 +410,8 @@ def recomp(src: str) -> str:
         "    if (jp_guest_exit_drained &&\n"
         "        ultramodern::jp_timer_exit_joined_stage17() &&\n"
         "        (!jp_integrated_restart_requested.load(std::memory_order_acquire) ||\n"
-        "         jp_exit_known_joined) && jp_external_queue_drained) {\n"
+        "         jp_exit_known_joined) && jp_native_scheduler_queue_cleared &&\n"
+        "        jp_external_queue_drained) {\n"
         "    // Free rdram.\n",
         "never release RDRAM on failed integrated shutdown barrier")
 
@@ -452,9 +497,11 @@ def recomp(src: str) -> str:
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--generated-dir", type=Path, required=True)
+    p.add_argument("--runtime-root", type=Path, required=True)
     a = p.parse_args()
     d = a.generated_dir
     changes = [
+        ("threadqueue.cpp", "threadqueue_integrated.cpp", scheduler),
         ("threads.cpp", "threads_reset.cpp", threads),
         ("mesgqueue.cpp", "mesgqueue_integrated.cpp", messages),
         ("events.cpp", "events_integrated.cpp", events),
@@ -463,7 +510,7 @@ def main() -> None:
         ("recomp_stage17.cpp", "recomp_integrated.cpp", recomp),
     ]
     for source, target, transform in changes:
-        path = d / source
+        path = (a.runtime_root / "ultramodern/src/threadqueue.cpp") if source == "threadqueue.cpp" else d / source
         original = path.read_text(encoding="utf-8")
         result = transform(original)
         output = d / target
