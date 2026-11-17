@@ -153,19 +153,26 @@ def messages(src: str) -> str:
         'void dequeue_external_messages(RDRAM_ARG1) {\n'
         '    (void)goemon_jp::pause::controller().wait_if_paused(exited);\n',
         "external message batch checkpoint")
+    // Stage4 changed the unbounded wait into a 10ms interruptible
+    // guest-shutdown loop. Preserve that shutdown checkpoint.
     src = once(src,
-        '    external_messages.wait_dequeue(to_send);\n'
-        '    if (!do_send(',
-        '    external_messages.wait_dequeue(to_send);\n'
+        'void ultramodern::wait_for_external_message(RDRAM_ARG1) {\n',
+        'void ultramodern::wait_for_external_message(RDRAM_ARG1) {\n'
+        '    (void)goemon_jp::pause::controller().wait_if_paused(exited);\n',
+        "guest message wait entry checkpoint")
+    src = once(src,
+        '    ultramodern::guest_shutdown_checkpoint();\n'
+        '    if (!do_send(PASS_RDRAM to_send.mq, to_send.mesg, to_send.jam, false)',
+        '    ultramodern::guest_shutdown_checkpoint();\n'
         '    (void)goemon_jp::pause::controller().wait_if_paused(exited);\n'
-        '    if (!do_send(',
+        '    if (!do_send(PASS_RDRAM to_send.mq, to_send.mesg, to_send.jam, false)',
         "external message wake checkpoint")
     src = once(src,
         '    if (external_messages.wait_dequeue_timed(to_send, std::chrono::milliseconds{millis})) {\n'
-        '        if (!do_send(',
+        '        ultramodern::guest_shutdown_checkpoint();\n',
         '    if (external_messages.wait_dequeue_timed(to_send, std::chrono::milliseconds{millis})) {\n'
-        '        (void)goemon_jp::pause::controller().wait_if_paused(exited);\n'
-        '        if (!do_send(',
+        '        ultramodern::guest_shutdown_checkpoint();\n'
+        '        (void)goemon_jp::pause::controller().wait_if_paused(exited);\n',
         "timed message wake checkpoint")
     return "// JP F6 cooperative pause: external message delivery to guest memory.\n" + src
 
@@ -180,9 +187,9 @@ def threads(src: str) -> str:
         'extern std::atomic_bool exited;\n',
         "OSThread pause includes and exit flag")
     src = once(src,
-        '    thread_context->running.wait();\n'
+        '    ultramodern::guest_shutdown_checkpoint();\n'
         '    // If this thread\'s context was replaced',
-        '    thread_context->running.wait();\n'
+        '    ultramodern::guest_shutdown_checkpoint();\n'
         '    // Once an OSThread wakes, stop before resuming guest C code.\n'
         '    (void)goemon_jp::pause::controller().wait_if_paused(exited);\n'
         '    // If this thread\'s context was replaced',
