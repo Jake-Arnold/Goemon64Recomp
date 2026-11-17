@@ -190,6 +190,11 @@ public:
 #else
         version_string += " [exit-barrier-off]";
 #endif
+#ifdef GOEMON_JP_GENERATION_STAGE13_ACTIVE
+        version_string += " [generation-admission]";
+#else
+        version_string += " [generation-admission-off]";
+#endif
 #endif
         constructor.Bind("version_number", &version_string);
 
