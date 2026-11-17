@@ -208,9 +208,13 @@ bool recomp::jp_request_integrated_reset() {
         "stopping=1 pid=unchanged; entering verified teardown.\\n",
         static_cast<unsigned long long>(
             jp_integrated_generation.load(std::memory_order_acquire)));
-    // This ends the current runtime GENERATION. The outer runtime function
-    // remains on the stack, and its SDL window is never destroyed.
-    ultramodern::quit();
+    // End only the current guest-runner loop. Do NOT call
+    // ultramodern::quit(), which clears current_game before guest threads
+    // have joined; their entry dispatch may still read that game id.
+    // The normal-exit join machinery uses exited but the process and SDL
+    // window are retained by our outer generation loop.
+    exited.store(true, std::memory_order_release);
+    game_status.notify_all();
     return true;
 }
 
