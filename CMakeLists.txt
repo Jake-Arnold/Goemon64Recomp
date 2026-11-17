@@ -502,6 +502,10 @@ if(GOEMON_BUILD_JAPAN)
     option(GOEMON_JP_GENERATION_STAGE13 "Enable fail-closed Japanese generation reset admission on F8" OFF)
     option(GOEMON_JP_CONFIG_FENCE_STAGE14 "Enable counted generation config producer fence on PC exit" OFF)
     option(GOEMON_JP_SDL_AUDIO_STAGE15 "Enable SDL audio callback fence and device close on PC exit" OFF)
+    option(GOEMON_JP_SAVE_STAGE16 "Enable pending save finalization after worker join on PC exit" OFF)
+    if(GOEMON_JP_SAVE_STAGE16 AND NOT GOEMON_JP_SDL_AUDIO_STAGE15)
+        message(FATAL_ERROR "GOEMON_JP_SAVE_STAGE16 requires GOEMON_JP_SDL_AUDIO_STAGE15=ON")
+    endif()
     if(GOEMON_JP_SDL_AUDIO_STAGE15 AND NOT GOEMON_JP_CONFIG_FENCE_STAGE14)
         message(FATAL_ERROR "GOEMON_JP_SDL_AUDIO_STAGE15 requires GOEMON_JP_CONFIG_FENCE_STAGE14=ON")
     endif()
@@ -745,6 +749,39 @@ if(GOEMON_BUILD_JAPAN)
         set_property(TARGET ultramodern PROPERTY SOURCES ${JP_STAGE7_AUDIO_SOURCES})
         target_sources(ultramodern PRIVATE "${JP_TIMER_GENERATED_DIR}/audio_stage7.cpp")
     endif()
+    # Stage16 changes only the JP save implementation generated from
+    # the exact pinned pi.cpp, preserving all Stage7 audit instrumentation.
+    # The final pending-write check happens after join_saving_thread()
+    # on ordinary app exit, never from live F8.
+    if(GOEMON_JP_SAVE_STAGE16)
+        set(JP_STAGE16_SCRIPT "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_save_finalize_stage16.py")
+        set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+            "${JP_STAGE16_SCRIPT}"
+            "${CMAKE_SOURCE_DIR}/tools/japan_port/patch_native_boot_save_audio_stage7.py")
+        execute_process(
+            COMMAND "${Python3_EXECUTABLE}" "${JP_STAGE16_SCRIPT}"
+                --runtime "${JP_TIMER_RUNTIME_ROOT}"
+                --output "${JP_TIMER_GENERATED_DIR}/pi_stage16.cpp"
+            RESULT_VARIABLE JP_STAGE16_RESULT
+            OUTPUT_VARIABLE JP_STAGE16_OUTPUT
+            ERROR_VARIABLE JP_STAGE16_ERROR)
+        if(NOT JP_STAGE16_RESULT EQUAL 0)
+            message(FATAL_ERROR
+                "JP Stage16 save finalization generation failed:\n"
+                "${JP_STAGE16_OUTPUT}\n${JP_STAGE16_ERROR}")
+        endif()
+        message(STATUS "${JP_STAGE16_OUTPUT}")
+        get_target_property(JP_STAGE16_LIB_SOURCES librecomp SOURCES)
+        list(FIND JP_STAGE16_LIB_SOURCES
+            "${JP_TIMER_GENERATED_DIR}/pi_stage7.cpp" JP_STAGE16_OLD_PI)
+        if(JP_STAGE16_OLD_PI EQUAL -1)
+            message(FATAL_ERROR "Stage16 requires generated Stage7 save worker source")
+        endif()
+        list(REMOVE_ITEM JP_STAGE16_LIB_SOURCES
+            "${JP_TIMER_GENERATED_DIR}/pi_stage7.cpp")
+        set_property(TARGET librecomp PROPERTY SOURCES ${JP_STAGE16_LIB_SOURCES})
+        target_sources(librecomp PRIVATE "${JP_TIMER_GENERATED_DIR}/pi_stage16.cpp")
+    endif()
     # Stage9 patches the *generated* stage7 recomp source, not the pinned
     # submodule. This stop request occurs ONLY after a normal PC app exit
     # and the native boot thread joins; F8 is still diagnostic-only.
@@ -895,6 +932,9 @@ if(GOEMON_BUILD_JAPAN)
     endif()
     if(GOEMON_JP_SDL_AUDIO_STAGE15)
         target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JP_SDL_AUDIO_STAGE15_ACTIVE)
+    endif()
+    if(GOEMON_JP_SAVE_STAGE16)
+        target_compile_definitions(Goemon64RecompiledJP PRIVATE GOEMON_JP_SAVE_STAGE16_ACTIVE)
     endif()
     # Regenerate the build-commit identifier on every JP build. The script
     # writes only when content changes; incremental compilation stays fast.
