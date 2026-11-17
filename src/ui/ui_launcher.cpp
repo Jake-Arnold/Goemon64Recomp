@@ -175,6 +175,11 @@ public:
 #else
         version_string += " [guest-exit-off]";
 #endif
+#ifdef GOEMON_JP_ACTION_STAGE10_ACTIVE
+        version_string += " [action-exit-drain]";
+#else
+        version_string += " [action-exit-off]";
+#endif
 #endif
         constructor.Bind("version_number", &version_string);
 
