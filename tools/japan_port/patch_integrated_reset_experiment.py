@@ -38,8 +38,9 @@ bool ultramodern::jp_flush_external_messages_after_join(std::uint64_t generation
     while (external_messages.try_dequeue(old)) {
         ++removed;
     }
-    if (external_messages.size_approx() != 0 ||
-        !jp_external_message_gate.rearm_after_verified_exit(generation, true)) {
+    // Keep producer admission CLOSED until the old RDRAM is actually
+    // unmapped and all other generation-local subsystems have rearmed.
+    if (external_messages.size_approx() != 0) {
         return false;
     }
     std::fprintf(stderr,
@@ -48,6 +49,17 @@ bool ultramodern::jp_flush_external_messages_after_join(std::uint64_t generation
         static_cast<unsigned long long>(removed),
         static_cast<unsigned long long>(generation));
     return true;
+}
+
+// Separate publish rearm occurs LAST, on the owner thread, AFTER the
+// verified old RDRAM unmap and ALL other subsystem rearm checks.
+bool ultramodern::jp_rearm_external_messages_after_verified_exit(
+        std::uint64_t old_generation) {
+    if (external_messages.size_approx() != 0) {
+        return false;
+    }
+    return jp_external_message_gate.rearm_after_verified_exit(
+        old_generation, true);
 }
 
 """
@@ -66,6 +78,7 @@ def messages(src: str) -> str:
         "static moodycamel::BlockingConcurrentQueue<QueuedMessage> external_messages {};\n",
         "static moodycamel::BlockingConcurrentQueue<QueuedMessage> external_messages {};\n"
         "namespace ultramodern { bool jp_flush_external_messages_after_join(std::uint64_t); }\n"
+        "namespace ultramodern { bool jp_rearm_external_messages_after_verified_exit(std::uint64_t); }\n"
         + EXTERNAL_QUEUE_FENCE,
         "external queue close, drain and rearm")
     src = once(src,
@@ -301,6 +314,7 @@ def recomp(src: str) -> str:
         "    bool jp_rearm_events_after_verified_exit(std::uint64_t);\n"
         "    bool jp_rearm_saving_after_verified_exit();\n"
         "    bool jp_flush_external_messages_after_join(std::uint64_t);\n"
+        "    bool jp_rearm_external_messages_after_verified_exit(std::uint64_t);\n"
         "}\n"
         "namespace recomp { bool jp_reset_audio_buffer_after_join(); }\n",
         "integrated ownership declarations")
@@ -385,7 +399,10 @@ def recomp(src: str) -> str:
             ultramodern::jp_rearm_saving_after_verified_exit();
         const bool audio_ready = save_ready &&
             recomp::jp_reset_audio_buffer_after_join();
-        if (!audio_ready) {
+        const bool external_ready = audio_ready &&
+            ultramodern::jp_rearm_external_messages_after_verified_exit(
+                old_generation);
+        if (!external_ready) {
             std::fprintf(stderr,
                 "[Goemon JP integrated reset] generation=%llu result=ABORT "
                 "reason=failed-generation-rearm; no new RDRAM allocated.\n",
