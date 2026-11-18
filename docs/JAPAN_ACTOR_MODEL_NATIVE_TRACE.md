@@ -1,5 +1,8 @@
 # Japanese native actor → graphics trace (opt-in; read-only)
 
+**Update (18 November 2026):** This document describes the first-generation tracer. After real Japanese native gameplay captured actor-to-graphics bindings, a [v2 upgrade](JAPAN_ACTOR_MODEL_NATIVE_TRACE_V2.md) was prepared to track actor generations, candidate segmented graphics sources and bounded per-draw guest command windows. If the first tracer is already applied, **use the v2 upgrader; do not inject v1 a second time**. The full Linux native gameplay/rebuild gate for v2 remains unverified.
+
+
 This source-only research tool targets **the user's native Japanese Linux PC recompilation**, not Project64, Wine, or the original 16-MiB ROM. It changes only locally generated, ignored C files and never patches game memory or writes any ROM. The game is unchanged unless explicitly rebuilt with this instrumentation and launched with `GOEMON_JP_ACTOR_TRACE=1`.
 
 ## Corrected Japanese original addresses (18 November 2026)
