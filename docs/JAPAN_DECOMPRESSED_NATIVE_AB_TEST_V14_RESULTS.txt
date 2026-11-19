@@ -1,0 +1,6 @@
+v14 ROM input A/B research-only verification:
+- Original JP 16 MiB ROM SHA-1 matched 9843ee979b5f6c80f5eda85df0baed9ae7c4e73b, XXH3-64 matched existing 0xD526A3DB80EB7924.
+- Reconstructed JP 32 MiB ROM in process from original: 1,311 file-table entries, 1,041 compressed; exact SHA-1 6f8745fecc3a5e7d4918c7a73353eb0726116ded; XXH3-64 0xC519E0E26FA0D20E.
+- Python tests: 8 tests passing including source-guard and compiled+executed synthetic C++ mode tests (default/test/invalid/malformed).
+- Python syntax: py_compile OK.
+- Actual Ubuntu user main.cpp complete compilation, runtime import, model rendering: NOT TESTED.
