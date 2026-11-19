@@ -1,12 +1,8 @@
 #!/usr/bin/env python3
-import unittest, sys, types
-from pathlib import Path
-# A minimal module stub permits source-transform unit tests without importing
-# the other private runtime probes. Real user install imports the real chain.
-v10=types.SimpleNamespace(v7=types.SimpleNamespace(STATE=Path('src/hle/rt64_state.cpp'),MARKER='MOCK_V7'),one=lambda s,a,b,n: (s.replace(a,b,1) if s.count(a)==1 else (_ for _ in ()).throw(ValueError(n))))
-sys.modules.setdefault('jp_rt64_robot_texture_link_v11',types.SimpleNamespace(v10=v10))
+import unittest
 import jp_rt64_tmem_replay_v12 as v12
 import jp_rt64_tmem_high_address_v13 as v13
+v10 = v12.v11.v10
 
 class Guards(unittest.TestCase):
     @staticmethod
