@@ -6,8 +6,8 @@ In the user's real JP v13/v14 replay log, two high RDRAM source addresses produc
 
 | final source_start | count | first 64 bytes at high source | first 64 at source minus 0x003C4000 | whole-TMEM before -> after |
 | --- | ---: | ---: | ---: | ---: |
-| a | 16 | 0 | 42 | 3812 -> 0 |
-| b | 8 | 0 | 64 | 4096 -> 0 |
+| `0x0078B6E0` | 16 | 0 | 42 | 3812 -> 0 |
+| `0x007953D0` | 8 | 0 | 64 | 4096 -> 0 |
 
 Both high addresses are **inside the runtime's 8 MiB RDRAM**. The corresponding lower addresses are 0x003C76E0 and 0x003D13D0. High samples are all zero, while lower controls have data. These are 64-byte counts, not proof that the entire lower source ranges contain the intended model textures.
 
