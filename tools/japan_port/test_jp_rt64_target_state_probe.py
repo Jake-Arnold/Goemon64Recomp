@@ -33,6 +33,51 @@ class V9SourceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'exactly once'):
             v9.transform(self.fixture()+v9.ADD_OLD)
 
+    def test_verify_installed_exact_v9_is_readonly(self):
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as d:
+            rt64=Path(d)
+            src=rt64/v9.RENDER
+            src.parent.mkdir(parents=True)
+            src.with_name(src.name+v8.BACKUP_SUFFIX).write_text('original-pinned-renderer')
+            expected_v8=self.fixture()
+            expected_v9=v9.transform(expected_v8)
+            src.write_text(expected_v9)
+            src.with_name(src.name+v9.BACKUP).write_text(expected_v8)
+            with mock.patch.object(v9.v4,'validate_rom'), \
+                 mock.patch.object(v9.v4,'blob_hash',return_value=v8.RENDER_ORIGINAL_GIT_BLOB), \
+                 mock.patch.object(v8,'transform_renderer',return_value=expected_v8), \
+                 mock.patch.object(v9,'_validate_dependent_rt64_sources') as validate_dep:
+                self.assertEqual(v9.verify_installed(rt64,Path('any')),src)
+                validate_dep.assert_called_once_with(rt64)
+                self.assertEqual(src.read_text(),expected_v9)
+                self.assertEqual(src.with_name(src.name+v9.BACKUP).read_text(),expected_v8)
+                with self.assertRaisesRegex(ValueError,'v9 appears already installed'):
+                    v9.plan(rt64,Path('any'))
+
+    def test_verify_refuses_invalid_v9_backup_or_changed_renderer(self):
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as d:
+            rt64=Path(d)
+            src=rt64/v9.RENDER
+            src.parent.mkdir(parents=True)
+            src.with_name(src.name+v8.BACKUP_SUFFIX).write_text('original-pinned-renderer')
+            expected_v8=self.fixture()
+            expected_v9=v9.transform(expected_v8)
+            src.write_text(expected_v9)
+            saved=src.with_name(src.name+v9.BACKUP)
+            saved.write_text('changed-backup')
+            with mock.patch.object(v9.v4,'validate_rom'), \
+                 mock.patch.object(v9.v4,'blob_hash',return_value=v8.RENDER_ORIGINAL_GIT_BLOB), \
+                 mock.patch.object(v8,'transform_renderer',return_value=expected_v8), \
+                 mock.patch.object(v9,'_validate_dependent_rt64_sources'):
+                with self.assertRaisesRegex(ValueError,'v9 backup does not match'):
+                    v9.verify_installed(rt64,Path('any'))
+                saved.write_text(expected_v8)
+                src.write_text(expected_v9+'// unsafe drift')
+                with self.assertRaisesRegex(ValueError,'not exact pinned v9'):
+                    v9.verify_installed(rt64,Path('any'))
+
     @unittest.skipUnless(shutil.which('g++'),'g++ not installed')
     def test_real_compiled_cxx_context_helper(self):
         program='''#include <cstdint>\n#include <cstdio>\n#include <cinttypes>\n#include <climits>\n\n'''+'''

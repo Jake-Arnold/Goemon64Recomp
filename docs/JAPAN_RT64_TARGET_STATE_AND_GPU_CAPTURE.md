@@ -16,6 +16,19 @@ For each already tagged robot GameCall when `FramebufferRenderer::submitRasterSc
 
 Source security gates: exact decompressed Japanese retail ROM SHA-1 `6f8745fecc3a5e7d4918c7a73353eb0726116ded`, original pinned interpreter Git blob, deterministic v4→v8 interpreter and v7 state source, pinned original renderer Git blob `46289b1961b88f82f7d8437402e96881080bee96` from the v8 backup, exact installed v8 renderer transformation, no v9 backup. Only local private `lib/rt64/src/render/rt64_framebuffer_renderer.cpp` is modified, and its v8 bytes are backed up to `.pre-jp-target-state-v9`. If any gate fails, **stop**. A direct v9 attempt on v7 or a modified RT64 version must fail rather than patching arbitrary text.
 
+### Existing v9 installation / repeated dry-run check
+
+The installer's `--dry-run` is strictly for upgrading **v8 to v9**. If it is run again after an earlier successful v9 installation, it will refuse the already-patched C++ source. This is intentional fail-closed protection against double-patching, **not evidence of unknown local source drift**. For an already installed v9 renderer, use the separate read-only verifier:
+
+```bash
+python3 /tmp/jp_rt64_target_state_probe.py \
+  --rom build-generated/japan/baserom.decompressed.z64 \
+  --rt64-dir lib/rt64 \
+  --verify-installed
+```
+
+It checks byte-for-byte equality to the deterministic pinned original -> v8 -> v9 renderer transformation, the original renderer backup and exact `pre-jp-target-state-v9` backup, the original Japanese ROM hash, and the previously installed interpreter and RT64 state source chain. No source is modified. **Only if this returns PASS**, skip the install step and rebuild/run the existing v9 capture. If it fails, do not remove backups or run an older patcher. A patch-size match alone does not authenticate the source.
+
 ### Install in existing Ubuntu Japanese checkout
 
 ```bash

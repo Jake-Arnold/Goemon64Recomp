@@ -114,19 +114,9 @@ def transform(source:str)->str:
     return source
 
 
-def plan(rt64:Path,rom:Path)->tuple[Path,bytes,bytes]:
-    v4.validate_rom(rom)
-    renderer=rt64/RENDER
-    original=renderer.with_name(renderer.name+v8.BACKUP_SUFFIX).read_bytes()
-    if v4.blob_hash(original)!=v8.RENDER_ORIGINAL_GIT_BLOB:
-        raise ValueError('pinned untouched RT64 renderer backup mismatch')
-    installed=renderer.read_bytes()
-    expected=v8.transform_renderer(original.decode('utf-8')).encode('utf-8')
-    if installed!=expected:
-        raise ValueError('installed RT64 renderer differs from exact v8 source; no changes')
-    if renderer.with_name(renderer.name+BACKUP).exists():
-        raise ValueError('v9 backup already exists; refuse repeated patch')
-    # Check that the corresponding source-only interpreter and state remain exact.
+def _validate_dependent_rt64_sources(rt64:Path)->None:
+    # The renderer can match while earlier v8/v7 instrumentation has changed.
+    # Verify the full original source chain before declaring v9 installed.
     interpreter=rt64/v4.RELATIVE
     pristine_inter=interpreter.with_name(interpreter.name+'.pre-jp-robot-probe').read_bytes()
     if v4.blob_hash(pristine_inter)!=v4.ORIGINAL_BLOB_SHA1:
@@ -141,6 +131,41 @@ def plan(rt64:Path,rom:Path)->tuple[Path,bytes,bytes]:
         raise ValueError('original RT64 state mismatch')
     if state.read_bytes()!=v7.transform_state(original_state.decode('utf-8')).encode('utf-8'):
         raise ValueError('RT64 state differs from exact v7 transform')
+
+
+def verify_installed(rt64:Path,rom:Path)->Path:
+    """Read-only: prove installed v9 equals precisely the pinned v8->v9 chain."""
+    v4.validate_rom(rom)
+    renderer=rt64/RENDER
+    original=renderer.with_name(renderer.name+v8.BACKUP_SUFFIX).read_bytes()
+    if v4.blob_hash(original)!=v8.RENDER_ORIGINAL_GIT_BLOB:
+        raise ValueError('pinned untouched RT64 renderer backup mismatch')
+    expected_v8=v8.transform_renderer(original.decode('utf-8')).encode('utf-8')
+    expected_v9=transform(expected_v8.decode('utf-8')).encode('utf-8')
+    if renderer.read_bytes()!=expected_v9:
+        raise ValueError('installed renderer is not exact pinned v9; no changes')
+    saved_v8=renderer.with_name(renderer.name+BACKUP).read_bytes()
+    if saved_v8!=expected_v8:
+        raise ValueError('v9 backup does not match exact v8 source; no changes')
+    _validate_dependent_rt64_sources(rt64)
+    return renderer
+
+
+def plan(rt64:Path,rom:Path)->tuple[Path,bytes,bytes]:
+    v4.validate_rom(rom)
+    renderer=rt64/RENDER
+    original=renderer.with_name(renderer.name+v8.BACKUP_SUFFIX).read_bytes()
+    if v4.blob_hash(original)!=v8.RENDER_ORIGINAL_GIT_BLOB:
+        raise ValueError('pinned untouched RT64 renderer backup mismatch')
+    installed=renderer.read_bytes()
+    expected=v8.transform_renderer(original.decode('utf-8')).encode('utf-8')
+    if installed!=expected:
+        if installed==transform(expected.decode('utf-8')).encode('utf-8'):
+            raise ValueError('v9 appears already installed; use --verify-installed to authenticate it; no changes')
+        raise ValueError('installed RT64 renderer differs from exact v8 or v9 source; no changes')
+    if renderer.with_name(renderer.name+BACKUP).exists():
+        raise ValueError('v9 backup already exists; refuse repeated patch')
+    _validate_dependent_rt64_sources(rt64)
     return renderer,installed,transform(installed.decode('utf-8')).encode('utf-8')
 
 
@@ -151,8 +176,16 @@ def main()->int:
     g=p.add_mutually_exclusive_group(required=True)
     g.add_argument('--dry-run',action='store_true')
     g.add_argument('--confirm-modify-private-rt64',action='store_true')
+    g.add_argument('--verify-installed',action='store_true',help='read-only exact v9+backup+dependency chain verification')
     a=p.parse_args()
     try:
+        if a.verify_installed:
+            dest=verify_installed(a.rt64_dir,a.rom)
+            print('exact original JP ROM, pinned v9 RT64 renderer and v8 backup: PASS')
+            print('exact interpreter and state source chain: PASS')
+            print('mode: v9 already installed and authenticated; no changes made')
+            print('renderer: '+str(dest))
+            return 0
         dest,old,new=plan(a.rt64_dir,a.rom)
         if a.confirm_modify_private_rt64:
             backup=dest.with_name(dest.name+BACKUP)
