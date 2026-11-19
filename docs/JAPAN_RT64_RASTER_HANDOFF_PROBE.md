@@ -69,6 +69,10 @@ python3 /tmp/analyze_jp_rt64_raster_v8.py "$HOME/goemon-jp-rt64-raster-v8.log"
 
 The offline summary prints per-list source ranges, matched renderer instances, recorded draw commands, projection/scissor skips and missing pipelines; it does not print actor addresses or raw commands.
 
+## Corrected offline analyzer (19 November 2026)
+
+**Caution:** The originally published v8 analyzer aggregated every `RASTER BUILT`/`DRAW_RECORDED` log occurrence, including repeated recording of the same GameCall within one workload frame. The live summary showed `range=104` versus `built=208`, `recorded=208`; the user's `root=0x1938` trace demonstrated one frame and the same six GameCall IDs processed twice. That overcounts unique source contributions, not necessarily raster work. The corrected analyzer deduplicates by `(root,sample,frame,call)`, records distinct built/recorded source geometry separately from raw repeated draw commands, and reports `repeat_built`, `repeat_recorded`, and `raw_recorded` totals. See `docs/JAPAN_RT64_RASTER_HANDOFF_ANALYZER_CORRECTION.md`. No rendering or trace instrumentation changes are required.
+
 ## Interpretation
 
 - `range=104`, `built=104`, `gpu_command_recorded=104`, `skip_projection=0`, `skip_scissor=0` (per sample, summing roots) means **all 104 encoded robot triangles are accounted for through CPU host graphics command recording**; still no GPU pixel visibility claim.
