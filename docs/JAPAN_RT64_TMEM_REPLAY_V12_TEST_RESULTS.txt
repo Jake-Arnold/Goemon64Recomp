@@ -1,0 +1,10 @@
+v12 source-only candidate
+- Source hook unit tests: 7 PASS
+- Offline analyzer tests: 4 PASS
+- Compiled and executed C++ diagnostic-hook fixture: 1 PASS
+- Python py_compile: PASS
+- Pinned original RT64 State::fullSync + LoadTile/LoadBlock/LoadTLUT source inspected via GitHub connector.
+- Complete user native CMake or gameplay: NOT RUN.
+- Existing v11 regression suite: 25 PASS (including v10 regression tests)
+- Combined suites: 37 PASS
+- Pinned original state Git blob SHA-1 f9f0ad8cdc7104f50ca0efd1a9750798e0aec094 checked remotely; all 5 v12 anchors matched exactly once.
