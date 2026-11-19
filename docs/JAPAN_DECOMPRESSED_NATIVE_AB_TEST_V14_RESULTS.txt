@@ -4,3 +4,9 @@ v14 ROM input A/B research-only verification:
 - Python tests: 8 tests passing including source-guard and compiled+executed synthetic C++ mode tests (default/test/invalid/malformed).
 - Python syntax: py_compile OK.
 - Actual Ubuntu user main.cpp complete compilation, runtime import, model rendering: NOT TESTED.
+19 November 2026: user-reported native gameplay A/B observation (not independently captured in this environment)
+- User reports the missing robot body is visually unchanged in the separately selected 32 MiB decompressed-ROM native mode versus original compressed-ROM mode.
+- This is sufficient to conclude that runtime decompression is not necessary to reproduce the visible defect, assuming the v14 native mode accepted the ROM as designed.
+- This does NOT prove the root cause, prove identical memory contents in the two runs, or distinguish guest-side address construction from RT64 segmented-address resolution and RDP replay.
+- Same-session v13 high-address controls are the next discriminator. Examine source_start=0x0078B6E0 and 0x007953D0 in the v14 trace, including source_nonzero64, candidate_minus_3c4000_nz64 and tmem_nz_before/after. If v13 counters are absent, do not infer zero.
+- Native gameplay log, same-frame RenderDoc capture and full v14 Ubuntu build transcript were not supplied for independent verification. Prior test results above refer only to the original source-only verification.
