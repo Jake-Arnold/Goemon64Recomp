@@ -29,7 +29,8 @@ CACHE_GIT_BLOB = '0848f3eda2b9577b54b4549ee8b168957a07545e'
 # published v4-v9 transformations from its verified pristine v8 backup.
 RENDER_INCLUDE = '#include "rt64_framebuffer_renderer.h"\n'
 CACHE_INCLUDE = '#include "rt64_texture_cache.h"\n'
-NAMESPACE = 'namespace RT64 {\n    // Helper functions.\n'
+RENDER_NAMESPACE = 'namespace RT64 {\n    // GOEMON_JP_RT64_RASTER_HANDOFF_V8: exact face-index trace bridge.\n'
+CACHE_NAMESPACE = 'namespace RT64 {\n    // ReplacementMap\n'
 INCLUDES = '#include <atomic>\n#include <cstdio>\n#include <cstdlib>\n#include <cstring>\n'
 
 RENDER_HELPER = '''    // GOEMON_JP_RT64_TEXTURE_ORIGIN_V10: read-only, opt-in 32x64 tile trace.
@@ -151,7 +152,7 @@ def transform_renderer(source:str)->str:
     if MARKER in source:raise ValueError('v10 renderer already installed')
     if v9.MARKER not in source:raise ValueError('exact installed v9 renderer required')
     source=one(source,RENDER_INCLUDE,RENDER_INCLUDE+INCLUDES,'renderer include')
-    source=one(source,NAMESPACE,NAMESPACE+RENDER_HELPER,'renderer namespace')
+    source=one(source,RENDER_NAMESPACE,RENDER_NAMESPACE+RENDER_HELPER,'renderer namespace')
     source=one(source,BIND_OLD,BIND_NEW,'cache lookup')
     return source
 
@@ -159,7 +160,7 @@ def transform_renderer(source:str)->str:
 def transform_cache(source:str)->str:
     if MARKER in source:raise ValueError('v10 cache already installed')
     source=one(source,CACHE_INCLUDE,CACHE_INCLUDE+INCLUDES,'cache include')
-    source=one(source,NAMESPACE,NAMESPACE+CACHE_HELPER,'cache namespace')
+    source=one(source,CACHE_NAMESPACE,CACHE_NAMESPACE+CACHE_HELPER,'cache namespace')
     for old,new,label in [
         (QUEUE_OLD,QUEUE_NEW,'queue input'),
         (CREATE_OLD,CREATE_NEW,'decode creation'),

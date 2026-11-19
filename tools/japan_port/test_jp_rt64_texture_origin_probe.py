@@ -10,9 +10,24 @@ import jp_rt64_texture_origin_probe as p
 
 class SourceTests(unittest.TestCase):
     def renderer_fixture(self):
-        return p.RENDER_INCLUDE+p.NAMESPACE+p.v9.MARKER+'\n'+p.BIND_OLD
+        return p.RENDER_INCLUDE+p.RENDER_NAMESPACE+p.v9.MARKER+'\n'+p.BIND_OLD
     def cache_fixture(self):
-        return p.CACHE_INCLUDE+p.NAMESPACE+p.QUEUE_OLD+p.CREATE_OLD+p.ADD_OLD
+        return p.CACHE_INCLUDE+p.CACHE_NAMESPACE+p.QUEUE_OLD+p.CREATE_OLD+p.ADD_OLD
+    def test_expected_v8_v9_namespace_anchors(self):
+        # The pinned v8 renderer replaced the original "Helper functions"
+        # line with its own marked bridge. Cache has always used ReplacementMap.
+        self.assertIn('GOEMON_JP_RT64_RASTER_HANDOFF_V8',p.RENDER_NAMESPACE)
+        self.assertIn('ReplacementMap',p.CACHE_NAMESPACE)
+        self.assertNotEqual(p.RENDER_NAMESPACE,p.CACHE_NAMESPACE)
+        self.assertEqual(self.renderer_fixture().count(p.RENDER_NAMESPACE),1)
+        self.assertEqual(self.cache_fixture().count(p.CACHE_NAMESPACE),1)
+    def test_wrong_original_namespaces_fail_closed(self):
+        for source,transform,correct in (
+            (self.renderer_fixture(),p.transform_renderer,p.RENDER_NAMESPACE),
+            (self.cache_fixture(),p.transform_cache,p.CACHE_NAMESPACE),
+        ):
+            with self.assertRaisesRegex(ValueError,'namespace: expected exactly one pinned anchor; found 0'):
+                transform(source.replace(correct, 'namespace RT64 {\n    // Helper functions.\n' if correct == p.RENDER_NAMESPACE else 'namespace RT64 {\n    // WrongCacheSection\n'))
     def test_renderer_transform(self):
         s=p.transform_renderer(self.renderer_fixture())
         self.assertIn(p.MARKER,s)

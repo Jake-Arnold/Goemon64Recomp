@@ -56,6 +56,10 @@ are logged. These identifiers are only stable **within the same execution**:
 A nonzero count across 4096 source TMEM bytes does **not** imply the relevant
 32×64 tile region has nonzero data. GPU readback is not performed by v10.
 
+## Published v10 installer namespace-anchor correction
+
+The initial v10 `--dry-run` failed with `renderer namespace: expected exactly one pinned anchor; found 0` despite correct untouched v9 inputs. The error was in the installer: it searched for the pristine RT64 `// Helper functions.` namespace header, which v8 had already replaced with the marked robot raster bridge. In addition, the texture-cache original namespace begins with `// ReplacementMap`, not `// Helper functions.`. The corrected installer uses distinct, uniquely pinned renderer-v9 and original texture-cache namespace anchors. No user files were changed by the rejected dry run. This fix does not weaken integrity validation or change any logging/graphics semantics.
+
 ## Installation and capture (on user's Ubuntu)
 
 Working directory: `~/Goemon64Recomp-JP`; existing pinned v9 private RT64
