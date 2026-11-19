@@ -54,10 +54,10 @@ class TestJPDecompressedInputV14(unittest.TestCase):
         # Stage18 starts its persistent session logger before project_version.
         stage18 = self.sample.replace(
             p.VERSION_ANCHOR,
-            "#if defined(__linux__) && defined(GOEMON_JAPAN_NATIVE)\\n"
-            "    // JP persistent session logging\\n"
-            "    if (!start_session()) { return 1; }\\n"
-            "#endif\\n" + p.VERSION_ANCHOR,
+            "#if defined(__linux__) && defined(GOEMON_JAPAN_NATIVE)\n"
+            "    // JP persistent session logging\n"
+            "    if (!start_session()) { return 1; }\n"
+            "#endif\n" + p.VERSION_ANCHOR,
         )
         transformed = p.transform(stage18)
         self.assertIn("if (!start_session()) { return 1; }", transformed)
