@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Fail-closed, research-only opt-in native JP decompressed ROM A/B input selector.
 
-Only patches the user's private tracked src/main/main.cpp with the exact pinned
-Git blob. No game assets/ROM, renderer, generated MIPS code or runtime library
+Only patches the user's private src/main/main.cpp when it matches one of two
+audited exact Git blobs (original research baseline or JP stage18 runtime). No game assets/ROM, renderer, generated MIPS code or runtime library
 are modified. Default JP ROM loading remains unchanged; the alternate
 --test-decompressed-jp mode requires the known 32 MiB image and never uses the
 normal game's stored ROM filename.
@@ -17,16 +17,15 @@ JP_DECOMP_SHA1 = "6f8745fecc3a5e7d4918c7a73353eb0726116ded"
 JP_DECOMP_XXH3 = 0xC519E0E26FA0D20E
 JP_DECOMP_BYTES = 0x02000000
 ORIGINAL_MAIN_BLOB = "6e6d2c5afae012b91507b85f114f3e31ebef7165"
+STAGE18_MAIN_BLOB = "e8d467df4637bd20592547140a533fca404379d5"
+SUPPORTED_MAIN_BLOBS = (ORIGINAL_MAIN_BLOB, STAGE18_MAIN_BLOB)
+
 MARKER = "GOEMON_JP_DECOMP_ROM_AB_V14"
 BACKUP_SUFFIX = ".pre-jp-decompressed-rom-ab-v14"
 
-VERSION_ANCHOR = """        return EXIT_SUCCESS;
-    }
-    recomp::Version project_version{};
+VERSION_ANCHOR = """    recomp::Version project_version{};
 """
-VERSION_PATCH = """        return EXIT_SUCCESS;
-    }
-#ifdef GOEMON_JAPAN_NATIVE
+VERSION_PATCH = """#ifdef GOEMON_JAPAN_NATIVE
     // GOEMON_JP_DECOMP_ROM_AB_V14: explicitly selected ROM-only comparison.
     // The normal compressed Japanese ROM entry is unchanged unless this
     // command-line mode is requested. The test has its own stored filename.
@@ -133,8 +132,9 @@ def plan(main: Path, rom: Path) -> tuple[bytes, bytes]:
     verify_rom(rom)
     original = main.read_bytes()
     observed = git_blob(original)
-    if observed != ORIGINAL_MAIN_BLOB:
-        raise ValueError(f"main.cpp source drift; expected pinned blob {ORIGINAL_MAIN_BLOB}; got {observed}")
+    if observed not in SUPPORTED_MAIN_BLOBS:
+        allowed = ", ".join(SUPPORTED_MAIN_BLOBS)
+        raise ValueError(f"main.cpp source drift; expected one of pinned blobs [{allowed}]; got {observed}")
     if main.with_name(main.name + BACKUP_SUFFIX).exists():
         raise ValueError("v14 backup already exists; refuse reapply")
     output = transform(original.decode("utf-8")).encode("utf-8")

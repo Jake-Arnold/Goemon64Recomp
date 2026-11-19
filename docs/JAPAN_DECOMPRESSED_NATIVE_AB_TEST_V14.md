@@ -31,7 +31,7 @@ python3 /tmp/jp_decompressed_runtime_test_v14.py \
   --main src/main/main.cpp --dry-run
 ```
 
-The installer **fails closed** unless the input ROM has exactly the expected size, SHA-1 and big-endian N64 magic, the exact original main.cpp Git blob is present, both anchors match once, and no existing v14 backup exists. A passing dry run says `v14: validated only`.
+The installer **fails closed** unless the input ROM has exactly the expected size, SHA-1 and big-endian N64 magic, main.cpp matches either of the two exact approved blobs (`6e6d2c5afae012b91507b85f114f3e31ebef7165` from the original research branch, or `e8d467df4637bd20592547140a533fca404379d5` from the JP stage18 runtime), both anchors match once, and no existing v14 backup exists. The stage18 variant keeps its additional startup/session-logging code intact; the insertion point is immediately before `recomp::Version project_version{}`. Unlisted `main.cpp` blobs still fail closed. A passing dry run says `v14: validated only`.
 
 Only after a passing dry run:
 

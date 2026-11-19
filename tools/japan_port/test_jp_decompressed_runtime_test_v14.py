@@ -2,6 +2,7 @@ import hashlib
 from pathlib import Path
 import tempfile
 import unittest
+from unittest import mock
 
 import jp_decompressed_runtime_test_v14 as p
 
@@ -24,6 +25,8 @@ class TestJPDecompressedInputV14(unittest.TestCase):
         self.assertEqual(p.JP_DECOMP_SHA1, '6f8745fecc3a5e7d4918c7a73353eb0726116ded')
         self.assertEqual(p.JP_DECOMP_XXH3, 0xC519E0E26FA0D20E)
         self.assertEqual(p.ORIGINAL_MAIN_BLOB, '6e6d2c5afae012b91507b85f114f3e31ebef7165')
+        self.assertEqual(p.STAGE18_MAIN_BLOB, 'e8d467df4637bd20592547140a533fca404379d5')
+        self.assertEqual(p.SUPPORTED_MAIN_BLOBS, (p.ORIGINAL_MAIN_BLOB, p.STAGE18_MAIN_BLOB))
 
     def test_transforms_and_preserves_original(self):
         actual = p.transform(self.sample)
@@ -46,6 +49,40 @@ class TestJPDecompressedInputV14(unittest.TestCase):
             p.transform(self.sample.replace('recomp::Version project_version{};', 'int nope = 3;'))
         with self.assertRaisesRegex(ValueError, 'expected one'):
             p.transform(self.sample + p.VERSION_ANCHOR)
+
+    def test_stage18_session_logging_layout(self):
+        # Stage18 starts its persistent session logger before project_version.
+        stage18 = self.sample.replace(
+            p.VERSION_ANCHOR,
+            "#if defined(__linux__) && defined(GOEMON_JAPAN_NATIVE)\\n"
+            "    // JP persistent session logging\\n"
+            "    if (!start_session()) { return 1; }\\n"
+            "#endif\\n" + p.VERSION_ANCHOR,
+        )
+        transformed = p.transform(stage18)
+        self.assertIn("if (!start_session()) { return 1; }", transformed)
+        self.assertIn("const char *jpDecompressedTestInput = nullptr;", transformed)
+        self.assertEqual(transformed.count(p.MARKER), 1)
+
+    def test_plan_accepts_both_exact_known_blobs_without_dropping_source(self):
+        with tempfile.TemporaryDirectory() as d:
+            main = Path(d) / "main.cpp"
+            main.write_text(self.sample)
+            for pinned in p.SUPPORTED_MAIN_BLOBS:
+                with self.subTest(pinned=pinned):
+                    with mock.patch.object(p, "verify_rom"), mock.patch.object(p, "git_blob", return_value=pinned):
+                        original, updated = p.plan(main, Path(d) / "test-rom.z64")
+                    self.assertEqual(original, main.read_bytes())
+                    self.assertIn(p.MARKER.encode(), updated)
+                    self.assertEqual(main.read_bytes(), original)
+
+    def test_plan_rejects_unapproved_source_even_with_valid_anchors(self):
+        with tempfile.TemporaryDirectory() as d:
+            main = Path(d) / "main.cpp"
+            main.write_text(self.sample)
+            with mock.patch.object(p, "verify_rom"):
+                with self.assertRaisesRegex(ValueError, "source drift"):
+                    p.plan(main, Path(d) / "test-rom.z64")
 
     def test_wrong_rom_rejected(self):
         with tempfile.TemporaryDirectory() as d:
