@@ -23,7 +23,7 @@ def fixture():
             "vram": 0x08000000 if i >= 24 else 0x801CB460,
             "rom": 0x580000 + (i - 11) * 0x100,
             "size": 0x100, "functions": [],
-            "relocs": [{"type": "R_MIPS_26"}] * 6426 if i == 24 else [],
+            "relocs": [{"type": "R_MIPS_26"}] * 6418 if i == 24 else [],
         })
     return {"section": sections}
 
@@ -34,7 +34,7 @@ class ProbeMetadataTests(unittest.TestCase):
         self.assertEqual(report["sections"], 72)
         self.assertEqual(report["relocatable_overlays"], 57)
         self.assertEqual(report["functions"], 7351)
-        self.assertEqual(report["relocations"], 6426)
+        self.assertEqual(report["relocations"], 6418)
 
     def test_bad_entrypoint_name(self):
         data = fixture()
@@ -62,7 +62,7 @@ class ProbeMetadataTests(unittest.TestCase):
         data["section"][15]["relocs"] = [{"type": "R_MIPS_26"}] * 6194
         data["section"][15 + 0]["name"] = data["section"][15]["name"]
         data["section"][15 + 0]["vram"] = 0x08000000
-        # still 6426 in file_24; explicitly strip it too
+        # still 6418 in file_24; explicitly strip it too
         data["section"][15]["relocs"] = []
         with self.assertRaisesRegex(ValueError, "older candidate inventory"):
             inspect_symbol_map(data)

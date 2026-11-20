@@ -4,6 +4,8 @@
 
 The lowest-rank pink robot's missing body was reproduced and fixed in an isolated native Linux build. Four instruction pairs in the Japanese overlay metadata incorrectly relocated a graphics operand that the game already combines with the model's base. See the [fix and gameplay evidence](JAPAN_ROBOT_TEXTURE_FIX.md), the [earlier v11–v18 investigation](JAPAN_ROBOT_TEXTURE_INVESTIGATION_V11_V18.md), and [issue #13](https://github.com/Jake-Arnold/Goemon64Recomp/issues/13).
 
+The [Oedo Town face texture follow-up](JAPAN_OEDO_NPC_TEXTURE_FIX.md) found the same code generation defect in four expression operands used by town NPCs.
+
 
 The goal is a **native** Japanese PC build of *Ganbare Goemon: Neo Momoyama Bakufu no Odori* alongside the existing USA *Mystical Ninja Starring Goemon* build.
 
@@ -15,7 +17,7 @@ A real run of the *exact* Goemon-pinned Linux `N64Recomp` binary (`07fcdac76da3e
 
 - **72 sections** (entry, main, 70 overlays); **57 relocatable overlay sections** explicitly have `relocs` arrays, including empty arrays for `file_52` and `file_76`.
 - **7,376 Japanese functions**, including 24 recovered from a C-designated Splat region and a ROM-verified split of two handwritten libultra routines.
-- **6,426 candidate relocations** after Japanese BSS inclusion and eighteen reviewed graphics-segment exclusions.
+- **6,418 candidate relocations** after Japanese BSS inclusion and twenty-six reviewed graphics-segment exclusions.
 - **No deliberate `ignored` functions** in the successful diagnostic configuration. The pinned N64Recomp symbol list recognises `send_mesg` and `handle_CpU` as OS functions supplied by the host runtime, so their handwritten exception code is not compiled directly.
 - Only diagnostic warning: an ambiguous JAL target `0x801D0B90` in `func_800023F4_2FF4` fell back to runtime function lookup; an indirect tail call in `recomp_entrypoint` was also reported.
 
@@ -274,7 +276,7 @@ python3 tools/japan_port/merge_candidate_symbols.py \
   --output /tmp/goemon-japan/japan-PROVISIONAL.syms.toml
 ```
 
-**Initially verified:** merged TOML contained 72 candidate sections, 7,351 functions and 6,434 relocation candidates. The current refined symbol map contains **7,376 functions**, 72 sections and 6,426 relocation candidates; see the current milestone above. Ten focused synthetic unit tests passed for the relocation scanner and TOML merger. The output is intentionally kept outside the repository and is not ready for a shipping PC runtime. The pinned N64Recomp host tools were built by GitHub Actions, and native C code generation was then successfully exercised locally (see above).
+**Initially verified:** merged TOML contained 72 candidate sections, 7,351 functions and 6,434 relocation candidates. The current refined symbol map contains **7,376 functions**, 72 sections and 6,418 relocation candidates; see the current milestone above. Ten focused synthetic unit tests passed for the relocation scanner and TOML merger. The output is intentionally kept outside the repository and is not ready for a shipping PC runtime. The pinned N64Recomp host tools were built by GitHub Actions, and native C code generation was then successfully exercised locally (see above).
 
 
 ## Exact USA difference audit and automated checks
@@ -314,7 +316,7 @@ python3 tools/japan_port/prepare_japan_recomp.py \
   --japan-decompressed-rom /path/to/mnsg/config/japan_0/baserom.decompressed.z64
 ```
 
-The tool enforces the pinned SHA-1, **72 sections**, **7,351 functions**, **6,426 relocations**, and the expected overlay identifiers, and places the provisional symbol TOML and ROM in ignored `build-generated/japan/` paths. The combined provisional TOML was independently generated from the current supplied Japanese extraction and parsed successfully. It is 1,009,693 bytes before any further cleanup.
+The tool enforces the pinned SHA-1, **72 sections**, **7,351 functions**, **6,418 relocations**, and the expected overlay identifiers, and places the provisional symbol TOML and ROM in ignored `build-generated/japan/` paths. The combined provisional TOML was independently generated from the current supplied Japanese extraction and parsed successfully. It is 1,009,693 bytes before any further cleanup.
 
 When a locally compiled `N64Recomp` executable is available, an **explicit exploratory trial** can be run with the same arguments plus `--run-recompiler --recompiler /absolute/path/to/N64Recomp`. A successful code-generation trial will still require relocation review, runtime integration, Japanese patch porting, boot tests, and gameplay verification before a playable PC port can be claimed.
 
