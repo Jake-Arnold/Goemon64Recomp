@@ -1,14 +1,18 @@
 """Synthetic ROM and assembly checks for the region-safe relocation scanner."""
 import hashlib
+import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import yaml
 
 try:
+    from . import reloc_candidates as scanner
     from .reloc_candidates import parse, symbol_address
 except ImportError:
+    import reloc_candidates as scanner
     from reloc_candidates import parse, symbol_address
 
 
@@ -48,6 +52,30 @@ class CandidateRelocationTests(unittest.TestCase):
         self.assertEqual(result["types"]["R_MIPS_LO16"], 1)
         self.assertEqual(result["types"]["R_MIPS_26"], 1)
         self.assertEqual(result["sections_with_candidates"], 1)
+
+    def test_graphics_pair_excludes_only_named_sites_for_the_rom(self):
+        data = bytearray(self.rom.read_bytes())
+        data[12:20] = data[:8]
+        self.rom.write_bytes(data)
+        digest = hashlib.sha1(data).hexdigest()
+        cfg = yaml.safe_load(self.splat.read_text())
+        cfg["sha1"] = digest
+        self.splat.write_text(yaml.safe_dump(cfg))
+        self.asm_file.write_text(self.asm_file.read_text() +
+            "/* 00C 0800000C 3C040800 */ lui $a0, %hi(func_08000020_20)\n"
+            "/* 010 08000010 24840020 */ addiu $a0, $a0, %lo(func_08000020_20)\n")
+        registry = self.base / "segmented_graphics_exclusions.json"
+        exclusions = [
+            dict(section="file_24", type=kind, vram=site, target_vram="0x08000020")
+            for kind, site in [("R_MIPS_HI16", "0x08000000"), ("R_MIPS_LO16", "0x08000004")]
+        ]
+        with patch.object(scanner, "__file__", str(self.base / "reloc_candidates.py")):
+            registry.write_text(json.dumps({"rom_sha1_to_exclusions": {"other": exclusions}}))
+            self.assertEqual(parse(self.asm, self.splat, self.rom)["candidate_relocations"], 5)
+            registry.write_text(json.dumps({"rom_sha1_to_exclusions": {digest: exclusions}}))
+            result = parse(self.asm, self.splat, self.rom)
+        self.assertEqual([row["vram"] for row in result["relocations"]["file_24"]],
+                         ["0x08000008", "0x0800000C", "0x08000010"])
 
     def test_wrong_rom_hash_rejected(self):
         self.rom.write_bytes(self.rom.read_bytes()[:-4] + bytes([1, 2, 3, 4]))

@@ -1,5 +1,7 @@
 # Japanese native robot: texture / segment / TLB-mapping investigation (v11–v18)
 
+**Follow-up:** [Robot texture fix and native gameplay comparison](JAPAN_ROBOT_TEXTURE_FIX.md). The addresses below are the historical investigation evidence.
+
 **Status: RESEARCH_ONLY — updated 20 November 2026.** This is the canonical consolidated evidence ledger for the *Japanese native recompilation* rendering defect affecting the lowest-rank pink robot. Work is on `research/japan-native-actor-model-trace-20261118` and draft PR [#35](https://github.com/Jake-Arnold/Goemon64Recomp/pull/35), tracked by [issue #13](https://github.com/Jake-Arnold/Goemon64Recomp/issues/13). No game/RT64 rendering or memory mapping fix has been validated. The other affected actors (woman in red and child) remain separate/unexplained.
 
 ## Critical finding: v18 live user report
