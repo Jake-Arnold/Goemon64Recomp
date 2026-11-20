@@ -31,7 +31,7 @@ except ImportError:
 
 EXPECTED_SECTIONS = 72
 EXPECTED_FUNCTIONS = 7351
-EXPECTED_RELOCATIONS = 6418
+EXPECTED_RELOCATIONS = 6414
 EXPECTED_TLB = [f'.file_{number}' for number in range(24, 81)]
 
 

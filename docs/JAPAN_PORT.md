@@ -1,5 +1,17 @@
 # Japanese native recompilation port
 
+## Rendering fixes on the F6/F8 integration branch
+
+The [pink robot](JAPAN_ROBOT_TEXTURE_FIX.md) and [Oedo NPC](JAPAN_OEDO_NPC_TEXTURE_FIX.md) fixes are included alongside the reset and pause runtime. The same double relocation also affects these two Japanese rev 0 setup paths:
+
+| Scene | Actor / model | Overlay | Graphics operand | HI16 / LO16 sites |
+| --- | --- | --- | --- | --- |
+| Ghost Toys 1F Crane Room (49 / `0x031`) | `0x01B9` | `file_30` | `0x08002360` | `0x08001F28` / `0x08001F2C` |
+| Akiyoshidai (326 / `0x146`) | `0x0100` | `file_32` | `0x08003D10` | `0x08002C50` / `0x08002C5C` |
+
+The scene and actor IDs come from the Japanese spawn table and placed actor instances. The Akiyoshidai baseline used an all-zero source at `0x007BE610`; the game's original arithmetic selects `0x003E3610` at that placement, with 4,068 nonzero bytes and all 2,048 RGBA16 alpha bits set. Both fixes keep the operand relative to the model so the original setter can add its loaded base. The current Japanese generation has 6,414 relocation entries.
+
+
 The goal is a **native** Japanese PC build of *Ganbare Goemon: Neo Momoyama Bakufu no Odori* alongside the existing USA *Mystical Ninja Starring Goemon* build.
 
 This branch now contains source-only preparation for **Japanese N64Recomp code generation**, plus verification and regression tools. A complete diagnostic Japanese N64Recomp pass has generated C output locally; **no Japanese playable PC executable or gameplay validation exists yet**. Upstream USA source/build configuration remains unchanged.

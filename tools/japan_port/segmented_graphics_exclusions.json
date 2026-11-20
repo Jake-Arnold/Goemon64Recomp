@@ -43,6 +43,18 @@
       {
         "section": "file_30",
         "type": "R_MIPS_HI16",
+        "vram": "0x08001F28",
+        "target_vram": "0x08002360"
+      },
+      {
+        "section": "file_30",
+        "type": "R_MIPS_LO16",
+        "vram": "0x08001F2C",
+        "target_vram": "0x08002360"
+      },
+      {
+        "section": "file_30",
+        "type": "R_MIPS_HI16",
         "vram": "0x080043E4",
         "target_vram": "0x08002360"
       },
@@ -87,6 +99,18 @@
         "type": "R_MIPS_LO16",
         "vram": "0x08001F98",
         "target_vram": "0x08003B10"
+      },
+      {
+        "section": "file_32",
+        "type": "R_MIPS_HI16",
+        "vram": "0x08002C50",
+        "target_vram": "0x08003D10"
+      },
+      {
+        "section": "file_32",
+        "type": "R_MIPS_LO16",
+        "vram": "0x08002C5C",
+        "target_vram": "0x08003D10"
       },
       {
         "section": "file_32",
