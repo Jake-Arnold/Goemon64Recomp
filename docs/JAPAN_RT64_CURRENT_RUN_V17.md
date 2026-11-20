@@ -22,3 +22,9 @@ Interpret `nonzero_to_zero` as whole-TMEM change, not proof it cleared the parti
 ## Verification
 
 10 synthetic Python unittest cases and `py_compile` run on the assistant host: PASS. Actual user gameplay execution and independent inspection of the user's private log: NOT RUN. Research-only; does not change game version or native runtime.
+
+## Actual user v17 analysis — 20 November 2026
+
+The user's v17 output for the prior **v16 run** yielded `targets=11`, `other_hash_targets=5`, **11 zero / 0 nonzero** whole-TMEM robot-hash snapshots, `load rows=352`, `unmatched=0`, `over_target_limit=0`, and 11 complete 32-row replay histories. All 11 histories contained a `0x007CA950` LoadBlock source, `source_nonzero64=0/64`, with whole-TMEM drop `3605→0` at recorded load index 104. The five call-144 histories also contained index 106 with `3550→0` at the same source. The output counted 16 **appearances**, not 16 independent load executions. Six distinct source addresses were represented in these replay histories: `0x007CA950`, `0x003909F0`, `0x003911F0`, `0x003E9E40`, `0x003B79C0`, and `0x003A59C0`.
+
+The separate later v18 session established address-setting and RDRAM alias samples, but not same-run CPU-TMEM replay statistics. See [canonical evidence ledger](JAPAN_ROBOT_TEXTURE_INVESTIGATION_V11_V18.md).

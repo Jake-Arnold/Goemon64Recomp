@@ -1,5 +1,10 @@
 # Japanese native recompilation port
 
+## Current Japanese robot rendering research (20 November 2026)
+
+The authenticated lowest-rank robot model's missing shell is now traced to an entirely blank CPU RDP TMEM input, with newer live segment and source-memory observations consistent with an unresolved virtual-memory alias / TLB mapping problem. Runtime compressed-versus-decompressed ROM input does **not** change the visible defect. Evidence, exact numeric data, per-run distinctions, and next verification gates are consolidated in [Japanese robot texture investigation v11–v18](JAPAN_ROBOT_TEXTURE_INVESTIGATION_V11_V18.md). This is **RESEARCH_ONLY**; neither a rendering correction nor a validated TLB mapping has been implemented. Track [issue #13](https://github.com/Jake-Arnold/Goemon64Recomp/issues/13) and draft [PR #35](https://github.com/Jake-Arnold/Goemon64Recomp/pull/35).
+
+
 The goal is a **native** Japanese PC build of *Ganbare Goemon: Neo Momoyama Bakufu no Odori* alongside the existing USA *Mystical Ninja Starring Goemon* build.
 
 This branch now contains source-only preparation for **Japanese N64Recomp code generation**, plus verification and regression tools. A complete diagnostic Japanese N64Recomp pass has generated C output locally; **no Japanese playable PC executable or gameplay validation exists yet**. Upstream USA source/build configuration remains unchanged.

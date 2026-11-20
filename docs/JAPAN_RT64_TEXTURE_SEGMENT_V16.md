@@ -72,3 +72,7 @@ Read-only check in existing log:
     grep -Ec '^\[JP-RT64\] TEX_REPLAY_TARGET .*hash=0x8042C12B60EC2B4E( |$)' ~/goemon-jp-texture-segment-v16.log
 
 If current-run high loads are present but TEX_SEG_V16 high events are absent, investigate RDP::setTextureImage and deferred load-operation creation separately. The pinned RDP::loadBlock captures operation.texture = texture before pushing workload.drawData.loadOperations; the later replay uses that stored loadOperation.texture. Do not modify addresses or TMEM based on the lone lower event.
+
+## Later v18 session correction (20 November 2026)
+
+The earlier v16 log contained one deduplicated **lower** RSP event and no recorded high-address TMEM replay; that was an observation of a specific run, not a restriction of the instrumented code. In a **new v18 run**, the retained v16 hook recorded the higher `0x7878B6E0`, `0x787953D0`, and `0x787CA950` segment-11/12 bases, whose RDP-masked addresses are `0x0078B6E0`, `0x007953D0`, and `0x007CA950`. It also recorded lower segment-8 addresses `0x003C76E0` and `0x003D13D0`. See [canonical v11–v18 evidence](JAPAN_ROBOT_TEXTURE_INVESTIGATION_V11_V18.md). Distinct run histories must not be combined as though simultaneous.

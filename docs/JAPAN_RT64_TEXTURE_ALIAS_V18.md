@@ -44,3 +44,21 @@ Only after successful v18 installation, provided no subsequent edits to the RSP 
 ## Verification
 
 Nine local synthetic Python source/guard tests and a standalone compiled C++ harness were run. The C++ harness verified the new alias counts from three known memory windows and no output when tracing is disabled. Actual native Japanese game build and gameplay were not run. RESEARCH_ONLY.
+
+## Actual user v18 gameplay trace — 20 November 2026
+
+The user successfully ran the v18 native decompressed-Japanese-ROM probe and reported all seven deduplicated `TEX_SEG_V16` lines plus two identical `TEX_ALIAS_V18` lines. The following exact bounded metadata are now **observed**, rather than hypothetical:
+
+| Raw G_SETTIMG / segment base | RDP image address |
+| --- | --- |
+| `0x08000790`, seg8=`0x003D0C40` | `0x003D13D0` |
+| `0x080019A0`, seg8=`0x003C5D40` | `0x003C76E0` |
+| `0x0B000000`, seg11=`0x7878B6E0` | `0x0078B6E0` |
+| `0x08001710`, seg8=`0x003CFCC0` | `0x003D13D0` |
+| `0x0B000000`, seg11=`0x787953D0` | `0x007953D0` |
+| `0x0C000000`, seg12=`0x787CA950` | `0x007CA950` |
+| `0x0B000000`, seg11=`0x787CA950` | `0x007CA950` |
+
+For both `0x007CA950` image-set observations: **high first64=0/64, whole4096=0/4096**; minus 4 MiB at `0x003CA950`: **30/64 and 1783/4096 nonzero**; minus `0x003C4000` at `0x00406950`: **0/64 and 0/4096 nonzero**. This strongly favors examining a 4 MiB alias / TLB mapping, but **no authoritative virtual-to-physical mapping nor intended texture identity has been proven**. `extend=0`; for all logged lines, `raw_plus_base=resolved` and RDP stored the corresponding low address. These are image-set-time reads, not the later TMEM replay-time samples.
+
+Cross-run warning: 11/11 blank robot TMEM uploads and `0x007CA950` block loads were measured in the earlier v16 session, **not asserted from the above v18 grep**. See the [full consolidated ledger](JAPAN_ROBOT_TEXTURE_INVESTIGATION_V11_V18.md) for precise chronology, unresolved mapping gates and evidence limitations.
