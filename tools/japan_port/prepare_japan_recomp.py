@@ -21,12 +21,14 @@ try:
     from .reloc_candidates import parse as scan_relocations
     from .merge_candidate_symbols import merge, JP_DECOMP
     from .complete_symbols import complete
+    from .experimental_libultra_leaves import NATIVE_LINK_ALIASES, apply as rename_libultra_leaves
     from .rom import verify_decompressed
 except ImportError:
     from candidate_symbols import sections, parse_functions, render
     from reloc_candidates import parse as scan_relocations
     from merge_candidate_symbols import merge, JP_DECOMP
     from complete_symbols import complete
+    from experimental_libultra_leaves import NATIVE_LINK_ALIASES, apply as rename_libultra_leaves
     from rom import verify_decompressed
 
 EXPECTED_SECTIONS = 72
@@ -57,7 +59,8 @@ def validate_config(repo_root: Path, sections_found: list[dict]) -> None:
         raise ValueError('Japan Splat does not define all N64Recomp overlay names')
 
 
-def generate(repo_root: Path, splat: Path, asm_root: Path, rom: Path) -> dict:
+def generate(repo_root: Path, splat: Path, asm_root: Path, rom: Path, *,
+             prepare_native: bool = False) -> dict:
     repo_root = repo_root.resolve()
     splat, asm_root, rom = splat.resolve(), asm_root.resolve(), rom.resolve()
     verify_decompressed(rom)
@@ -75,6 +78,11 @@ def generate(repo_root: Path, splat: Path, asm_root: Path, rom: Path) -> dict:
     combined, candidate_report = merge(render(sec, functions), relocations, bss)
     combined, completion_report = complete(combined, rom.read_bytes())
     report = {**candidate_report, **completion_report}
+    if prepare_native:
+        # These two names resolve to missing host functions at the runtime pin.
+        # Compile their original Japanese instructions instead.
+        combined, native_links = rename_libultra_leaves(combined, aliases=NATIVE_LINK_ALIASES)
+        report["native_libultra_link_aliases"] = native_links["aliases"]
     output = repo_root / 'build-generated' / 'japan'
     output.mkdir(parents=True, exist_ok=True)
     (output / 'japan-PROVISIONAL.syms.toml').write_text(combined)
@@ -160,7 +168,7 @@ def main() -> int:
     if args.prepare_native_hooks and not args.run_recompiler:
         cli.error('--prepare-native-hooks requires --run-recompiler')
     report=generate(args.repo_root,args.japan_splat,args.japan_asm,
-                    args.japan_decompressed_rom)
+                    args.japan_decompressed_rom, prepare_native=args.prepare_native_hooks)
     if args.run_recompiler:
         binary=args.recompiler.resolve()
         if not binary.is_file() or not os.access(binary,os.X_OK):

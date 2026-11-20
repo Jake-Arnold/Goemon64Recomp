@@ -22,7 +22,15 @@ LEAVES = {
 }
 
 
-def apply(source: str) -> tuple[str, dict]:
+NATIVE_LINK_ALIASES = {
+    "__osCheckId": "jp_osCheckId_mips",
+    "__osPfsRWInode": "jp_osPfsRWInode_mips",
+}
+
+
+def apply(source: str, *, aliases: dict[str, str] | None = None) -> tuple[str, dict]:
+    if aliases is None:
+        aliases = {name: "jp_impl_" + name for name in LEAVES}
     parsed = tomllib.loads(source)
     sections = parsed.get("section", [])
     main = [s for s in sections if s.get("name") == ".main"]
@@ -33,11 +41,11 @@ def apply(source: str) -> tuple[str, dict]:
         raise ValueError("Duplicate original symbol names")
     count_before = len(all_names)
     result = source
-    for name, (vram, size) in LEAVES.items():
+    for name, alias in aliases.items():
+        vram, size = LEAVES[name]
         candidates = [f for f in main[0].get("functions", []) if f["name"] == name]
         if len(candidates) != 1 or (candidates[0]["vram"], candidates[0]["size"]) != (vram, size):
             raise ValueError(f"Unexpected Japanese libultra function layout: {name}")
-        alias = "jp_impl_" + name
         if alias in all_names:
             raise ValueError("Alias already exists: " + alias)
         line = f'{{ name = "{name}", vram = 0x{vram:08X}, size = 0x{size:X} }}'
@@ -49,11 +57,11 @@ def apply(source: str) -> tuple[str, dict]:
     after = tomllib.loads(result)
     final = [f for s in after["section"] for f in s.get("functions", [])]
     if len(final) != count_before or any(
-        name in {f["name"] for f in final} for name in LEAVES
+        name in {f["name"] for f in final} for name in aliases
     ):
         raise ValueError("Experimental rewrite did not preserve function inventory")
     return result, {
-        "aliases": sorted("jp_impl_" + name for name in LEAVES),
+        "aliases": sorted(aliases.values()),
         "input_functions": count_before,
         "output_functions": len(final),
         "status": "Experimental C-generation metadata; PFS semantics and linking unverified",

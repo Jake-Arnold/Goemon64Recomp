@@ -3,9 +3,9 @@ import tomllib
 import unittest
 
 try:
-    from .experimental_libultra_leaves import LEAVES, apply
+    from .experimental_libultra_leaves import LEAVES, NATIVE_LINK_ALIASES, apply
 except ImportError:
-    from experimental_libultra_leaves import LEAVES, apply
+    from experimental_libultra_leaves import LEAVES, NATIVE_LINK_ALIASES, apply
 
 
 def fixture() -> str:
@@ -37,6 +37,18 @@ class LibultraLeafTests(unittest.TestCase):
             for f in section["functions"]
         }
         self.assertEqual(names, {"jp_impl_" + key for key in LEAVES})
+
+    def test_native_link_uses_only_the_two_missing_host_symbols(self):
+        result, stats = apply(fixture(), aliases=NATIVE_LINK_ALIASES)
+        names = {
+            f["name"]
+            for section in tomllib.loads(result)["section"]
+            for f in section["functions"]
+        }
+        self.assertEqual(names, {
+            "jp_osCheckId_mips", "jp_osPfsRWInode_mips", "__osPfsSelectBank",
+        })
+        self.assertEqual(stats["output_functions"], stats["input_functions"])
 
     def test_wrong_rom_address_is_rejected(self):
         first = next(iter(LEAVES))
