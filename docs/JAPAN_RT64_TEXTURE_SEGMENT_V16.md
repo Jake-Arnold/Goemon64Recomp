@@ -52,3 +52,23 @@ Only if v16 patch was the sole subsequent editor of the RSP source:
 ## Verification boundary
 
 9 local Python unittest cases passed, including compiled C++ code exercising the real injected function on disabled and enabled modes and deduplication. py_compile passed. Source Git blob pin confirmed via pinned upstream GitHub tree. Native Ubuntu RT64 build and gameplay remain unexecuted. RESEARCH_ONLY.
+
+
+## User v16 gameplay observation — 20 November 2026
+
+The user ran the decompressed-ROM native mode with GOEMON_JP_RT64_TRACE=1 and GOEMON_JP_RT64_TEX_TRACE=1 and grepped the resulting v16 log. **Exactly one TEX_SEG_V16 line** was reported:
+
+    raw=0x08000790 seg=8 base=0x003D0C40 offset=0x000790
+    raw_plus_base=0x003D13D0 resolved=0x003D13D0
+    rdp=0x003D13D0 fmt=0 siz=2 width=1 extend=0
+
+This proves the lower control address 0x003D13D0 was resolved consistently by the instrumented RSP::setTextureImage path in this capture. It does **not** demonstrate how either high address was formed. No TEX_SEG_V16 lines for 0x0078B6E0 or 0x007953D0 appeared in the user's reported grep output.
+
+**Missing coverage check:** The user has not yet supplied TEX_REPLAY_TARGET or TEX_REPLAY_LOAD counts from this exact v16 log. It is therefore unknown whether the earlier high-address loads were actually exercised during this capture. A single lower RSP event cannot be compared against v13 high-address load events from a different run to prove an RSP bypass or an address mutation.
+
+Read-only check in existing log:
+
+    grep -Ec '^\[JP-RT64\] TEX_REPLAY_LOAD .*source_start=0x(0078B6E0|007953D0)( |$)' ~/goemon-jp-texture-segment-v16.log
+    grep -Ec '^\[JP-RT64\] TEX_REPLAY_TARGET .*hash=0x8042C12B60EC2B4E( |$)' ~/goemon-jp-texture-segment-v16.log
+
+If current-run high loads are present but TEX_SEG_V16 high events are absent, investigate RDP::setTextureImage and deferred load-operation creation separately. The pinned RDP::loadBlock captures operation.texture = texture before pushing workload.drawData.loadOperations; the later replay uses that stored loadOperation.texture. Do not modify addresses or TMEM based on the lone lower event.
