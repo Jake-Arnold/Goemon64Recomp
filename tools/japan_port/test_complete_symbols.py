@@ -14,7 +14,7 @@ except ImportError:
 
 
 def fixture():
-    # Input contains exactly 7351 functions and 6434 relocations in 72 sections.
+    # Input contains exactly 7351 functions and 6426 relocations in 72 sections.
     parts = [
         '# INCOMPLETE JAPAN N64RECOMP CANDIDATE MAP. NOT READY FOR PC BOOT.',
         '[[section]]',
@@ -50,7 +50,7 @@ def fixture():
             parts.append('relocs = [')
             parts.extend([
                 '    { type = "R_MIPS_26", vram = 0x08000000, target_vram = 0x08000020 },'
-                for _ in range(6434)
+                for _ in range(6426)
             ])
             parts.append(']')
         parts += ['functions = [', ']']
@@ -79,7 +79,7 @@ class MetadataCompletionTests(unittest.TestCase):
         result = tomllib.loads(output)['section']
         main = result[1]['functions']
         self.assertEqual(stats['functions'], 7376)
-        self.assertEqual(stats['relocations'], 6434)
+        self.assertEqual(stats['relocations'], 6426)
         self.assertEqual(stats['dynamic_overlay_tables'], 57)
         self.assertEqual(stats['new_wave_functions'], 24)
         self.assertTrue(any(x['name'] == 'func_80013D54_14954' for x in main))
