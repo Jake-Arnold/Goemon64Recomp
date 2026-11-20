@@ -125,6 +125,54 @@
         "target_vram": "0x08000060"
       },
       {
+        "section": "file_59",
+        "type": "R_MIPS_HI16",
+        "vram": "0x0800036C",
+        "target_vram": "0x08001B10"
+      },
+      {
+        "section": "file_59",
+        "type": "R_MIPS_LO16",
+        "vram": "0x08000370",
+        "target_vram": "0x08001B10"
+      },
+      {
+        "section": "file_59",
+        "type": "R_MIPS_HI16",
+        "vram": "0x08000420",
+        "target_vram": "0x08001710"
+      },
+      {
+        "section": "file_59",
+        "type": "R_MIPS_LO16",
+        "vram": "0x08000434",
+        "target_vram": "0x08001710"
+      },
+      {
+        "section": "file_59",
+        "type": "R_MIPS_HI16",
+        "vram": "0x08001524",
+        "target_vram": "0x080018B0"
+      },
+      {
+        "section": "file_59",
+        "type": "R_MIPS_LO16",
+        "vram": "0x08001534",
+        "target_vram": "0x080018B0"
+      },
+      {
+        "section": "file_59",
+        "type": "R_MIPS_HI16",
+        "vram": "0x08001868",
+        "target_vram": "0x080019A0"
+      },
+      {
+        "section": "file_59",
+        "type": "R_MIPS_LO16",
+        "vram": "0x0800187C",
+        "target_vram": "0x080019A0"
+      },
+      {
         "section": "file_74",
         "type": "R_MIPS_HI16",
         "vram": "0x080037C4",
