@@ -61,4 +61,4 @@ class CurrentRunV17(unittest.TestCase):
         x=summarize([load(), target(loads=0)])
         self.assertIn('load rows=0',x)
 
-if __name__=='__main__': unittest.main()
+if __name__ == '__main__': unittest.main()
